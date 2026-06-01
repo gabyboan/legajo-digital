@@ -37,7 +37,9 @@ export function formatHourMinute(value: string | null | undefined) {
 }
 
 export function formatMinutes(minutos: number) {
-  const horas = Math.floor(minutos / 60)
-  const resto = minutos % 60
-  return `${horas}:${String(resto).padStart(2, '0')} hs`
+  const sign = minutos < 0 ? '-' : ''
+  const absolute = Math.abs(minutos)
+  const horas = Math.floor(absolute / 60)
+  const resto = absolute % 60
+  return `${sign}${horas}:${String(resto).padStart(2, '0')} hs`
 }

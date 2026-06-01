@@ -334,6 +334,111 @@ export async function updateAsistenciaPersona(formData: FormData) {
   redirect(`/personas/${dni}`)
 }
 
+export async function updateBancoInicialHoras(formData: FormData) {
+  const supabase = await createClient()
+
+  const dni = Number(String(formData.get('dni') ?? '').trim())
+  const carreraId = toNullableInt(formData.get('carrera_id'))
+
+  if (!Number.isInteger(dni) || dni <= 0) {
+    redirect('/personas?error=DNI%20inv%C3%A1lido')
+  }
+
+  await requireLegajoEdit(supabase, `/personas/${dni}/editar`)
+
+  if (carreraId === null || carreraId <= 0) {
+    redirect(
+      `/personas/${dni}/editar?error=${encodeURIComponent(
+        'Debe seleccionar una carrera antes de cargar banco inicial'
+      )}`
+    )
+  }
+
+  const fecha = toNullableDate(formData.get('saldo_inicial_fecha'))
+  const horas = toNullableInt(formData.get('saldo_inicial_horas')) ?? 0
+  const minutosResto =
+    toNullableInt(formData.get('saldo_inicial_minutos')) ?? 0
+  const signo = String(formData.get('saldo_inicial_signo') ?? '1') === '-1'
+    ? -1
+    : 1
+
+  if (!fecha) {
+    redirect(
+      `/personas/${dni}/editar?error=${encodeURIComponent(
+        'Debe indicar la fecha del banco inicial'
+      )}`
+    )
+  }
+
+  if (horas < 0 || minutosResto < 0 || minutosResto > 59) {
+    redirect(
+      `/personas/${dni}/editar?error=${encodeURIComponent(
+        'El banco inicial debe cargarse en horas y minutos validos'
+      )}`
+    )
+  }
+
+  const minutos = signo * (horas * 60 + minutosResto)
+
+  if (minutos === 0) {
+    redirect(
+      `/personas/${dni}/editar?error=${encodeURIComponent(
+        'El banco inicial debe ser distinto de cero'
+      )}`
+    )
+  }
+
+  const { error } = await supabase.rpc('rpc_francos_saldo_inicial', {
+    p_dni: dni,
+    p_carrera_id: carreraId,
+    p_fecha: fecha,
+    p_minutos: minutos,
+    p_observacion: toNullableString(formData.get('saldo_inicial_observacion')),
+  })
+
+  if (error) {
+    redirect(`/personas/${dni}/editar?error=${encodeURIComponent(error.message)}`)
+  }
+
+  revalidatePath(`/personas/${dni}`)
+  revalidatePath(`/personas/${dni}/editar`)
+  redirect(`/personas/${dni}/editar`)
+}
+
+export async function deleteBancoInicialHoras(formData: FormData) {
+  const supabase = await createClient()
+
+  const dni = Number(String(formData.get('dni') ?? '').trim())
+  const carreraId = toNullableInt(formData.get('carrera_id'))
+
+  if (!Number.isInteger(dni) || dni <= 0) {
+    redirect('/personas?error=DNI%20inv%C3%A1lido')
+  }
+
+  await requireLegajoEdit(supabase, `/personas/${dni}/editar`)
+
+  if (carreraId === null || carreraId <= 0) {
+    redirect(
+      `/personas/${dni}/editar?error=${encodeURIComponent(
+        'Debe seleccionar una carrera antes de eliminar banco inicial'
+      )}`
+    )
+  }
+
+  const { error } = await supabase.rpc('rpc_francos_saldo_inicial_eliminar', {
+    p_dni: dni,
+    p_carrera_id: carreraId,
+  })
+
+  if (error) {
+    redirect(`/personas/${dni}/editar?error=${encodeURIComponent(error.message)}`)
+  }
+
+  revalidatePath(`/personas/${dni}`)
+  revalidatePath(`/personas/${dni}/editar`)
+  redirect(`/personas/${dni}/editar`)
+}
+
 export async function inactivarPersona(formData: FormData) {
   const supabase = await createClient()
 

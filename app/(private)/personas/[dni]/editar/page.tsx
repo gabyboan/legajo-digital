@@ -3,6 +3,10 @@ import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { canCurrentUserEditLegajo } from '../../permissions'
 import { AsistenciaEditForm } from './components/asistencia-edit-form'
+import {
+  BancoInicialHorasForm,
+  type BancoInicialHoras,
+} from './components/banco-inicial-horas-form'
 import { PersonaEditForm } from './components/persona-edit-form'
 
 type EditarPersonaPageProps = {
@@ -110,6 +114,13 @@ export default async function EditarPersonaPage({
       })
     : { data: [], error: null }
 
+  const bancoInicialRes = carreraActualId
+    ? await supabase.rpc('rpc_francos_saldo_inicial_actual', {
+        p_dni: dniNumber,
+        p_carrera_id: Number(carreraActualId),
+      })
+    : { data: [], error: null }
+
   const horariosPorDia = new Map<number, HorarioPersona>()
 
   for (const row of (horariosActualesRes.data ?? []) as HorarioPersona[]) {
@@ -151,6 +162,11 @@ export default async function EditarPersonaPage({
           message={`Error al cargar asistencia: ${horariosActualesRes.error.message}`}
         />
       ) : null}
+      {bancoInicialRes.error && carreraActualId ? (
+        <ErrorBanner
+          message={`Error al cargar banco inicial: ${bancoInicialRes.error.message}`}
+        />
+      ) : null}
 
       <PersonaEditForm
         persona={persona}
@@ -164,6 +180,15 @@ export default async function EditarPersonaPage({
         dni={persona.dni}
         carreraActualId={carreraActualId}
         horariosPorDia={horariosPorDia}
+      />
+
+      <BancoInicialHorasForm
+        dni={persona.dni}
+        carreraActualId={carreraActualId}
+        bancoInicial={
+          ((bancoInicialRes.data ?? [])[0] as BancoInicialHoras | undefined) ??
+          null
+        }
       />
     </section>
   )
