@@ -1,7 +1,10 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
-import { canCurrentUserEditLegajo } from '../permissions'
+import {
+  canCurrentUserEditLegajo,
+  canCurrentUserWriteFrancos,
+} from '../permissions'
 import { NuevaPersonaForm } from './nueva-persona-form'
 
 type NuevaPersonaPageProps = {
@@ -26,7 +29,7 @@ export default async function NuevaPersonaPage({
     )
   }
 
-  const [situacionesRes, carrerasRes] = await Promise.all([
+  const [situacionesRes, carrerasRes, canWriteFrancos] = await Promise.all([
     supabase
       .from('situacion_revista')
       .select('id, nombre')
@@ -36,6 +39,8 @@ export default async function NuevaPersonaPage({
       .from('carreras')
       .select('id, nombre')
       .order('id', { ascending: true }),
+
+    canCurrentUserWriteFrancos(supabase),
   ])
 
   const situaciones = situacionesRes.data ?? []
@@ -75,7 +80,11 @@ export default async function NuevaPersonaPage({
         </div>
       ) : null}
 
-      <NuevaPersonaForm situaciones={situaciones} carreras={carreras} />
+      <NuevaPersonaForm
+        situaciones={situaciones}
+        carreras={carreras}
+        canEditAsistencia={canWriteFrancos}
+      />
     </section>
   )
 }

@@ -3,7 +3,10 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
-import { canCurrentUserEditLegajo } from './permissions'
+import {
+  canCurrentUserEditLegajo,
+  canCurrentUserWriteFrancos,
+} from './permissions'
 
 function toNullableString(value: FormDataEntryValue | null) {
   const text = String(value ?? '').trim()
@@ -85,6 +88,21 @@ async function requireLegajoEdit(
 
   if (!canEdit) {
     redirect(`${redirectTo}?error=No%20ten%C3%A9s%20permisos%20para%20editar`)
+  }
+}
+
+async function requireFrancosWrite(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  redirectTo: string
+) {
+  const canWrite = await canCurrentUserWriteFrancos(supabase)
+
+  if (!canWrite) {
+    redirect(
+      `${redirectTo}?error=${encodeURIComponent(
+        'No tenés permisos para cargar francos'
+      )}`
+    )
   }
 }
 
@@ -200,6 +218,8 @@ export async function createPersona(formData: FormData) {
     await syncSituacionRevista(supabase, dni, situacionId)
 
     if (asistenciaItems.length > 0) {
+      await requireFrancosWrite(supabase, '/personas/nuevo')
+
       const { error: asistenciaError } = await supabase.rpc(
         'rpc_francos_horario_guardar',
         {
@@ -308,6 +328,7 @@ export async function updateAsistenciaPersona(formData: FormData) {
   }
 
   await requireLegajoEdit(supabase, `/personas/${dni}/editar`)
+  await requireFrancosWrite(supabase, `/personas/${dni}/editar`)
 
   if (carreraId === null || carreraId <= 0) {
     redirect(
@@ -345,6 +366,7 @@ export async function updateBancoInicialHoras(formData: FormData) {
   }
 
   await requireLegajoEdit(supabase, `/personas/${dni}/editar`)
+  await requireFrancosWrite(supabase, `/personas/${dni}/editar`)
 
   if (carreraId === null || carreraId <= 0) {
     redirect(
@@ -416,6 +438,7 @@ export async function deleteBancoInicialHoras(formData: FormData) {
   }
 
   await requireLegajoEdit(supabase, `/personas/${dni}/editar`)
+  await requireFrancosWrite(supabase, `/personas/${dni}/editar`)
 
   if (carreraId === null || carreraId <= 0) {
     redirect(

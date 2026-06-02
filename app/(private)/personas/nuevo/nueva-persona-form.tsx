@@ -12,6 +12,7 @@ type Option = {
 type NuevaPersonaFormProps = {
   situaciones: Option[]
   carreras: Option[]
+  canEditAsistencia: boolean
 }
 
 const DIAS_SEMANA = [
@@ -27,6 +28,7 @@ const DIAS_SEMANA = [
 export function NuevaPersonaForm({
   situaciones,
   carreras,
+  canEditAsistencia,
 }: NuevaPersonaFormProps) {
   const [step, setStep] = useState<1 | 2>(1)
   const formRef = useRef<HTMLFormElement>(null)
@@ -36,6 +38,11 @@ export function NuevaPersonaForm({
     if (!form) return
 
     if (!form.reportValidity()) {
+      return
+    }
+
+    if (!canEditAsistencia) {
+      form.requestSubmit()
       return
     }
 
@@ -58,15 +65,17 @@ export function NuevaPersonaForm({
         >
           1. Datos
         </span>
-        <span
-          className={`rounded-full px-3 py-1 ${
-            step === 2
-              ? 'bg-white text-black'
-              : 'bg-zinc-800 text-zinc-400'
-          }`}
-        >
-          2. Asistencia
-        </span>
+        {canEditAsistencia ? (
+          <span
+            className={`rounded-full px-3 py-1 ${
+              step === 2
+                ? 'bg-white text-black'
+                : 'bg-zinc-800 text-zinc-400'
+            }`}
+          >
+            2. Asistencia
+          </span>
+        ) : null}
       </div>
 
       <div className={step === 1 ? 'space-y-6' : 'hidden'}>
@@ -219,7 +228,7 @@ export function NuevaPersonaForm({
             onClick={goNext}
             className="rounded-lg bg-white px-4 py-3 text-sm font-semibold text-black transition hover:opacity-90"
           >
-            Siguiente
+            {canEditAsistencia ? 'Siguiente' : 'Guardar persona'}
           </button>
 
           <Link
@@ -231,6 +240,7 @@ export function NuevaPersonaForm({
         </div>
       </div>
 
+      {canEditAsistencia ? (
       <div className={step === 2 ? 'space-y-6' : 'hidden'}>
         <div>
           <h2 className="text-lg font-semibold">Asistencia</h2>
@@ -314,6 +324,7 @@ export function NuevaPersonaForm({
           </Link>
         </div>
       </div>
+      ) : null}
     </form>
   )
 }

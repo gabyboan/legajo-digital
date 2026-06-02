@@ -39,3 +39,13 @@ export async function canCurrentUserEditLegajo(supabase: SupabaseClient) {
 
   return (roles?.length ?? 0) > 0
 }
+
+export async function canCurrentUserWriteFrancos(supabase: SupabaseClient) {
+  const { data, error } = await supabase.rpc('can_francos_write')
+
+  if (error) {
+    return false
+  }
+
+  return data === true
+}

@@ -20,14 +20,18 @@ type HorarioPersona = {
 type AsistenciaEditFormProps = {
   dni: number
   carreraActualId: string
+  canEditAsistencia: boolean
   horariosPorDia: Map<number, HorarioPersona>
 }
 
 export function AsistenciaEditForm({
   dni,
   carreraActualId,
+  canEditAsistencia,
   horariosPorDia,
 }: AsistenciaEditFormProps) {
+  const inputsDisabled = !carreraActualId || !canEditAsistencia
+
   return (
     <form
       action={updateAsistenciaPersona}
@@ -44,7 +48,7 @@ export function AsistenciaEditForm({
         </p>
       </div>
 
-      {!carreraActualId ? (
+      {!carreraActualId && canEditAsistencia ? (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
           Selecciona y guarda una carrera antes de cargar asistencia.
         </div>
@@ -64,6 +68,7 @@ export function AsistenciaEditForm({
                   type="checkbox"
                   name={`asiste_${dia.id}`}
                   defaultChecked={Boolean(horario)}
+                  disabled={inputsDisabled}
                   className="h-4 w-4 rounded border-zinc-700 bg-zinc-950"
                 />
                 {dia.label}
@@ -82,7 +87,7 @@ export function AsistenciaEditForm({
                   type="time"
                   step="60"
                   defaultValue={horario?.hora_desde ?? ''}
-                  disabled={!carreraActualId}
+                  disabled={inputsDisabled}
                   className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none focus:border-zinc-500 disabled:cursor-not-allowed disabled:bg-zinc-900 disabled:text-zinc-600"
                 />
               </div>
@@ -100,7 +105,7 @@ export function AsistenciaEditForm({
                   type="time"
                   step="60"
                   defaultValue={horario?.hora_hasta ?? ''}
-                  disabled={!carreraActualId}
+                  disabled={inputsDisabled}
                   className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none focus:border-zinc-500 disabled:cursor-not-allowed disabled:bg-zinc-900 disabled:text-zinc-600"
                 />
               </div>
@@ -110,13 +115,15 @@ export function AsistenciaEditForm({
       </div>
 
       <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={!carreraActualId}
-          className="rounded-lg bg-white px-4 py-3 text-sm font-semibold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Guardar asistencia
-        </button>
+        {canEditAsistencia ? (
+          <button
+            type="submit"
+            disabled={!carreraActualId}
+            className="rounded-lg bg-white px-4 py-3 text-sm font-semibold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Guardar asistencia
+          </button>
+        ) : null}
 
         <Link
           href={`/personas/${dni}`}

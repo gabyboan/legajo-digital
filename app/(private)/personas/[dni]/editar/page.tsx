@@ -1,7 +1,10 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
-import { canCurrentUserEditLegajo } from '../../permissions'
+import {
+  canCurrentUserEditLegajo,
+  canCurrentUserWriteFrancos,
+} from '../../permissions'
 import { AsistenciaEditForm } from './components/asistencia-edit-form'
 import {
   BancoInicialHorasForm,
@@ -40,7 +43,10 @@ export default async function EditarPersonaPage({
   }
 
   const supabase = await createClient()
-  const canEdit = await canCurrentUserEditLegajo(supabase)
+  const [canEdit, canWriteFrancos] = await Promise.all([
+    canCurrentUserEditLegajo(supabase),
+    canCurrentUserWriteFrancos(supabase),
+  ])
 
   if (!canEdit) {
     redirect(
@@ -179,12 +185,14 @@ export default async function EditarPersonaPage({
       <AsistenciaEditForm
         dni={persona.dni}
         carreraActualId={carreraActualId}
+        canEditAsistencia={canWriteFrancos}
         horariosPorDia={horariosPorDia}
       />
 
       <BancoInicialHorasForm
         dni={persona.dni}
         carreraActualId={carreraActualId}
+        canEditBancoInicial={canWriteFrancos}
         bancoInicial={
           ((bancoInicialRes.data ?? [])[0] as BancoInicialHoras | undefined) ??
           null
