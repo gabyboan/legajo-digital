@@ -41,6 +41,13 @@ export default async function PrivateLayout({
             >
               Personas
             </Link>
+
+            <Link
+              href="/agenda"
+              className="block rounded-lg px-3 py-2 text-sm text-zinc-200 transition hover:bg-zinc-800"
+            >
+              Agenda
+            </Link>
           </nav>
 
           <div className="mt-10 rounded-xl border border-zinc-800 bg-zinc-950 p-4">

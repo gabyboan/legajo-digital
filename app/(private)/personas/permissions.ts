@@ -4,7 +4,10 @@ type SupabaseClient = Awaited<ReturnType<typeof createClient>>
 
 export const LEGAJO_EDIT_ROLE_IDS = [19, 20]
 
-export async function canCurrentUserEditLegajo(supabase: SupabaseClient) {
+async function currentUserHasAnyRole(
+  supabase: SupabaseClient,
+  roleIds: number[]
+) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -26,7 +29,7 @@ export async function canCurrentUserEditLegajo(supabase: SupabaseClient) {
   const roleQuery = supabase
     .from('usuario_roles')
     .select('rol_id')
-    .in('rol_id', LEGAJO_EDIT_ROLE_IDS)
+    .in('rol_id', roleIds)
     .limit(1)
 
   const { data: roles, error: rolesError } = usuario
@@ -38,6 +41,14 @@ export async function canCurrentUserEditLegajo(supabase: SupabaseClient) {
   }
 
   return (roles?.length ?? 0) > 0
+}
+
+export function canCurrentUserEditLegajo(supabase: SupabaseClient) {
+  return currentUserHasAnyRole(supabase, LEGAJO_EDIT_ROLE_IDS)
+}
+
+export function canCurrentUserManageFeriados(supabase: SupabaseClient) {
+  return currentUserHasAnyRole(supabase, [19])
 }
 
 export async function canCurrentUserWriteFrancos(supabase: SupabaseClient) {

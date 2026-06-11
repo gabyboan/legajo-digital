@@ -45,6 +45,10 @@ function asistenciaItemsFromFormData(formData: FormData, redirectTo: string) {
     hora_hasta: string
   }> = []
 
+  if (formData.get('horario_rotativo') === 'on') {
+    return items
+  }
+
   for (let dia = 1; dia <= 7; dia += 1) {
     const enabled = formData.get(`asiste_${dia}`) === 'on'
     const desde = String(formData.get(`hora_desde_${dia}`) ?? '').trim()
@@ -190,6 +194,7 @@ export async function createPersona(formData: FormData) {
   }
 
   const carreraId = carreraIdRaw
+  const horarioRotativo = formData.get('horario_rotativo') === 'on'
   const asistenciaItems = asistenciaItemsFromFormData(
     formData,
     '/personas/nuevo'
@@ -203,6 +208,7 @@ export async function createPersona(formData: FormData) {
     email: toNullableString(formData.get('email')),
     telefono: toNullableString(formData.get('telefono')),
     fecha_nacimiento: toNullableDate(formData.get('fecha_nacimiento')),
+    horario_rotativo: horarioRotativo,
     created_by: user?.id ?? null,
     updated_by: user?.id ?? null,
   }
@@ -339,6 +345,18 @@ export async function updateAsistenciaPersona(formData: FormData) {
   }
 
   const items = asistenciaItemsFromFormData(formData, `/personas/${dni}/editar`)
+  const horarioRotativo = formData.get('horario_rotativo') === 'on'
+
+  const { error: modalidadError } = await supabase
+    .from('personas')
+    .update({ horario_rotativo: horarioRotativo })
+    .eq('dni', dni)
+
+  if (modalidadError) {
+    redirect(
+      `/personas/${dni}/editar?error=${encodeURIComponent(modalidadError.message)}`
+    )
+  }
 
   const { error } = await supabase.rpc('rpc_francos_horario_guardar', {
     p_dni: dni,

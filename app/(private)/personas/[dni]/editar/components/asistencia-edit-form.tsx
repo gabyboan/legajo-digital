@@ -1,4 +1,7 @@
+'use client'
+
 import Link from 'next/link'
+import { useState } from 'react'
 import { updateAsistenciaPersona } from '../../../actions'
 
 const DIAS_SEMANA = [
@@ -22,6 +25,7 @@ type AsistenciaEditFormProps = {
   carreraActualId: string
   canEditAsistencia: boolean
   horariosPorDia: Map<number, HorarioPersona>
+  horarioRotativo: boolean
 }
 
 export function AsistenciaEditForm({
@@ -29,8 +33,11 @@ export function AsistenciaEditForm({
   carreraActualId,
   canEditAsistencia,
   horariosPorDia,
+  horarioRotativo,
 }: AsistenciaEditFormProps) {
+  const [esRotativo, setEsRotativo] = useState(horarioRotativo)
   const inputsDisabled = !carreraActualId || !canEditAsistencia
+  const horariosFijosDisabled = inputsDisabled || esRotativo
 
   return (
     <form
@@ -43,8 +50,8 @@ export function AsistenciaEditForm({
       <div>
         <h2 className="text-lg font-semibold">Asistencia</h2>
         <p className="mt-1 text-sm text-zinc-400">
-          Carga solo los dias y horarios confirmados. Los datos dudosos del PDF
-          pueden quedar sin cargar hasta validarlos.
+          Carga solo los dias y horarios confirmados. Los datos dudosos pueden
+          quedar sin cargar hasta validarlos.
         </p>
       </div>
 
@@ -53,6 +60,25 @@ export function AsistenciaEditForm({
           Selecciona y guarda una carrera antes de cargar asistencia.
         </div>
       ) : null}
+
+      <label className="block rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-4">
+        <span className="flex items-center gap-3 text-sm font-semibold text-cyan-100">
+          <input
+            type="checkbox"
+            name="horario_rotativo"
+            checked={esRotativo}
+            onChange={(event) => setEsRotativo(event.target.checked)}
+            disabled={inputsDisabled}
+            className="h-4 w-4 rounded border-zinc-700 bg-zinc-950"
+          />
+          Horario rotativo
+        </span>
+        <span className="mt-2 block text-sm text-cyan-100/75">
+          30 horas semanales en turnos de 6 horas: mañana 06:00 a 12:00,
+          vespertino 12:00 a 18:00, tarde 18:00 a 00:00 y noche 00:00 a 06:00.
+          Al guardar esta modalidad se eliminan los horarios fijos.
+        </span>
+      </label>
 
       <div className="space-y-3">
         {DIAS_SEMANA.map((dia) => {
@@ -68,7 +94,7 @@ export function AsistenciaEditForm({
                   type="checkbox"
                   name={`asiste_${dia.id}`}
                   defaultChecked={Boolean(horario)}
-                  disabled={inputsDisabled}
+                  disabled={horariosFijosDisabled}
                   className="h-4 w-4 rounded border-zinc-700 bg-zinc-950"
                 />
                 {dia.label}
@@ -87,7 +113,7 @@ export function AsistenciaEditForm({
                   type="time"
                   step="60"
                   defaultValue={horario?.hora_desde ?? ''}
-                  disabled={inputsDisabled}
+                  disabled={horariosFijosDisabled}
                   className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none focus:border-zinc-500 disabled:cursor-not-allowed disabled:bg-zinc-900 disabled:text-zinc-600"
                 />
               </div>
@@ -105,7 +131,7 @@ export function AsistenciaEditForm({
                   type="time"
                   step="60"
                   defaultValue={horario?.hora_hasta ?? ''}
-                  disabled={inputsDisabled}
+                  disabled={horariosFijosDisabled}
                   className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none focus:border-zinc-500 disabled:cursor-not-allowed disabled:bg-zinc-900 disabled:text-zinc-600"
                 />
               </div>
