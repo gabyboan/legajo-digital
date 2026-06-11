@@ -22,12 +22,14 @@ export type HorarioPersona = {
 type AsistenciaCardProps = {
   dni: number
   horarios: HorarioPersona[]
+  horarioRotativo: boolean
   canEdit: boolean
 }
 
 export function AsistenciaCard({
   dni,
   horarios,
+  horarioRotativo,
   canEdit,
 }: AsistenciaCardProps) {
   const cargaSemanalMinutos = horarios.reduce(
@@ -55,7 +57,17 @@ export function AsistenciaCard({
         ) : null}
       </div>
 
-      {horarios.length === 0 ? (
+      {horarioRotativo ? (
+        <div className="mt-5 space-y-3">
+          <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-4 text-sm text-cyan-100">
+            Horario rotativo: 30 horas semanales en turnos de 6 horas.
+          </div>
+          <p className="text-sm text-zinc-400">
+            Turnos posibles: mañana 06:00 a 12:00, vespertino 12:00 a 18:00,
+            tarde 18:00 a 00:00 y noche 00:00 a 06:00.
+          </p>
+        </div>
+      ) : horarios.length === 0 ? (
         <div className="mt-5 rounded-xl border border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-500">
           Sin asistencia cargada.
         </div>

@@ -63,7 +63,9 @@ export default async function EditarPersonaPage({
   ] = await Promise.all([
     supabase
       .from('personas')
-      .select('dni, legajo, apellido, nombre, email, telefono, fecha_nacimiento')
+      .select(
+        'dni, legajo, apellido, nombre, email, telefono, fecha_nacimiento, horario_rotativo'
+      )
       .eq('dni', dniNumber)
       .maybeSingle(),
 
@@ -187,6 +189,7 @@ export default async function EditarPersonaPage({
         carreraActualId={carreraActualId}
         canEditAsistencia={canWriteFrancos}
         horariosPorDia={horariosPorDia}
+        horarioRotativo={persona.horario_rotativo}
       />
 
       <BancoInicialHorasForm

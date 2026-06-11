@@ -69,7 +69,7 @@ export default async function PersonaDetallePage({
     supabase
       .from('personas')
       .select(
-        'dni, legajo, apellido, nombre, email, telefono, fecha_nacimiento, created_at, updated_at'
+        'dni, legajo, apellido, nombre, email, telefono, fecha_nacimiento, created_at, updated_at, horario_rotativo'
       )
       .eq('dni', dniNumber)
       .maybeSingle(),
@@ -183,6 +183,7 @@ export default async function PersonaDetallePage({
           <AsistenciaCard
             dni={persona.dni}
             horarios={horarios}
+            horarioRotativo={persona.horario_rotativo}
             canEdit={canEdit}
           />
 

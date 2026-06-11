@@ -31,6 +31,7 @@ export function NuevaPersonaForm({
   canEditAsistencia,
 }: NuevaPersonaFormProps) {
   const [step, setStep] = useState<1 | 2>(1)
+  const [horarioRotativo, setHorarioRotativo] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
 
   function goNext() {
@@ -245,10 +246,27 @@ export function NuevaPersonaForm({
         <div>
           <h2 className="text-lg font-semibold">Asistencia</h2>
           <p className="mt-1 text-sm text-zinc-400">
-            Cargá solo los días y horarios confirmados. Podés dejarlo vacío y
-            completarlo luego desde editar persona.
+            Carga solo los dias y horarios confirmados. Los datos dudosos pueden
+            quedar sin cargar hasta validarlos.
           </p>
         </div>
+
+        <label className="block rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-4">
+          <span className="flex items-center gap-3 text-sm font-semibold text-cyan-100">
+            <input
+              type="checkbox"
+              name="horario_rotativo"
+              checked={horarioRotativo}
+              onChange={(event) => setHorarioRotativo(event.target.checked)}
+              className="h-4 w-4 rounded border-zinc-700 bg-zinc-950"
+            />
+            Horario rotativo
+          </span>
+          <span className="mt-2 block text-sm text-cyan-100/75">
+            30 horas semanales en turnos de 6 horas: mañana 06:00 a 12:00,
+            vespertino 12:00 a 18:00, tarde 18:00 a 00:00 y noche 00:00 a 06:00.
+          </span>
+        </label>
 
         <div className="space-y-3">
           {DIAS_SEMANA.map((dia) => (
@@ -260,6 +278,7 @@ export function NuevaPersonaForm({
                 <input
                   type="checkbox"
                   name={`asiste_${dia.id}`}
+                  disabled={horarioRotativo}
                   className="h-4 w-4 rounded border-zinc-700 bg-zinc-950"
                 />
                 {dia.label}
@@ -277,6 +296,7 @@ export function NuevaPersonaForm({
                   name={`hora_desde_${dia.id}`}
                   type="time"
                   step="60"
+                  disabled={horarioRotativo}
                   className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none focus:border-zinc-500"
                 />
               </div>
@@ -293,6 +313,7 @@ export function NuevaPersonaForm({
                   name={`hora_hasta_${dia.id}`}
                   type="time"
                   step="60"
+                  disabled={horarioRotativo}
                   className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none focus:border-zinc-500"
                 />
               </div>

@@ -21,12 +21,15 @@ export default function DashboardPage() {
           </p>
         </Link>
 
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-          <h2 className="text-lg font-semibold">Documentos</h2>
+        <Link
+          href="/agenda"
+          className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 transition hover:bg-zinc-800/60"
+        >
+          <h2 className="text-lg font-semibold">Agenda</h2>
           <p className="mt-2 text-sm text-zinc-400">
-            Próximo módulo: adjuntos del legajo.
+            Feriados y días no laborables para el cálculo de francos.
           </p>
-        </div>
+        </Link>
 
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
           <h2 className="text-lg font-semibold">Historial</h2>
