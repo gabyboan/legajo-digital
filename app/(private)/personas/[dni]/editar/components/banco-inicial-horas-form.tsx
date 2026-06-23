@@ -30,7 +30,10 @@ export function BancoInicialHorasForm({
   const signo = bancoInicial && bancoInicial.minutos < 0 ? '-1' : '1'
 
   return (
-    <div className="space-y-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+    <div
+      id="banco-horas"
+      className="scroll-mt-6 space-y-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-6"
+    >
       <div>
         <h2 className="text-lg font-semibold">Banco inicial de horas</h2>
         <p className="mt-1 text-sm text-zinc-400">
