@@ -34,6 +34,16 @@ function toNullableInt(value: FormDataEntryValue | null) {
   return num
 }
 
+
+function bancoInicialErrorMessage(message: string) {
+  const lower = message.toLowerCase()
+
+  if (lower.includes('6') && lower.includes('hora')) {
+    return 'Banco inicial permite saldos mayores a 6 horas. La base de datos todavia esta aplicando la regla diaria; hay que actualizar rpc_francos_saldo_inicial para omitir ese limite en este flujo.'
+  }
+
+  return message
+}
 function isValidHourMinute(value: string) {
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(value)
 }
@@ -303,7 +313,7 @@ export async function updatePersona(formData: FormData) {
     .eq('dni', dni)
 
   if (error) {
-    redirect(`/personas/${dni}/editar?error=${encodeURIComponent(error.message)}`)
+    redirect(`/personas/${dni}/editar?error=${encodeURIComponent(bancoInicialErrorMessage(error.message))}`)
   }
 
   try {
@@ -365,7 +375,7 @@ export async function updateAsistenciaPersona(formData: FormData) {
   })
 
   if (error) {
-    redirect(`/personas/${dni}/editar?error=${encodeURIComponent(error.message)}`)
+    redirect(`/personas/${dni}/editar?error=${encodeURIComponent(bancoInicialErrorMessage(error.message))}`)
   }
 
   revalidatePath(`/personas/${dni}`)
@@ -437,7 +447,7 @@ export async function updateBancoInicialHoras(formData: FormData) {
   })
 
   if (error) {
-    redirect(`/personas/${dni}/editar?error=${encodeURIComponent(error.message)}`)
+    redirect(`/personas/${dni}/editar?error=${encodeURIComponent(bancoInicialErrorMessage(error.message))}`)
   }
 
   revalidatePath(`/personas/${dni}`)
@@ -445,6 +455,86 @@ export async function updateBancoInicialHoras(formData: FormData) {
   redirect(`/personas/${dni}/editar`)
 }
 
+export async function updateBancoInicialHorasDesdeListado(formData: FormData) {
+  const supabase = await createClient()
+  const q = toNullableString(formData.get('q'))
+  const redirectTo = q
+    ? `/personas/banco-horas?q=${encodeURIComponent(q)}`
+    : '/personas/banco-horas'
+
+  const dni = Number(String(formData.get('dni') ?? '').trim())
+  const carreraId = toNullableInt(formData.get('carrera_id'))
+
+  if (!Number.isInteger(dni) || dni <= 0) {
+    redirect('/personas/banco-horas?error=DNI%20invalido')
+  }
+
+  await requireLegajoEdit(supabase, redirectTo)
+  await requireFrancosWrite(supabase, redirectTo)
+
+  if (carreraId === null || carreraId <= 0) {
+    redirect(
+      `${redirectTo}${redirectTo.includes('?') ? '&' : '?'}error=${encodeURIComponent(
+        'Debe seleccionar una carrera antes de cargar banco inicial'
+      )}`
+    )
+  }
+
+  const fecha = toNullableDate(formData.get('saldo_inicial_fecha'))
+  const horas = toNullableInt(formData.get('saldo_inicial_horas')) ?? 0
+  const minutosResto =
+    toNullableInt(formData.get('saldo_inicial_minutos')) ?? 0
+  const signo = String(formData.get('saldo_inicial_signo') ?? '1') === '-1'
+    ? -1
+    : 1
+
+  if (!fecha) {
+    redirect(
+      `${redirectTo}${redirectTo.includes('?') ? '&' : '?'}error=${encodeURIComponent(
+        'Debe indicar la fecha del banco inicial'
+      )}`
+    )
+  }
+
+  if (horas < 0 || minutosResto < 0 || minutosResto > 59) {
+    redirect(
+      `${redirectTo}${redirectTo.includes('?') ? '&' : '?'}error=${encodeURIComponent(
+        'El banco inicial debe cargarse en horas y minutos validos'
+      )}`
+    )
+  }
+
+  const minutos = signo * (horas * 60 + minutosResto)
+
+  if (minutos === 0) {
+    redirect(
+      `${redirectTo}${redirectTo.includes('?') ? '&' : '?'}error=${encodeURIComponent(
+        'El banco inicial debe ser distinto de cero'
+      )}`
+    )
+  }
+
+  const { error } = await supabase.rpc('rpc_francos_saldo_inicial', {
+    p_dni: dni,
+    p_carrera_id: carreraId,
+    p_fecha: fecha,
+    p_minutos: minutos,
+    p_observacion: toNullableString(formData.get('saldo_inicial_observacion')),
+  })
+
+  if (error) {
+    redirect(
+      `${redirectTo}${redirectTo.includes('?') ? '&' : '?'}error=${encodeURIComponent(
+        bancoInicialErrorMessage(error.message)
+      )}`
+    )
+  }
+
+  revalidatePath('/personas/banco-horas')
+  revalidatePath(`/personas/${dni}`)
+  revalidatePath(`/personas/${dni}/editar`)
+  redirect(`${redirectTo}${redirectTo.includes('?') ? '&' : '?'}updated=${dni}`)
+}
 export async function deleteBancoInicialHoras(formData: FormData) {
   const supabase = await createClient()
 
@@ -472,7 +562,7 @@ export async function deleteBancoInicialHoras(formData: FormData) {
   })
 
   if (error) {
-    redirect(`/personas/${dni}/editar?error=${encodeURIComponent(error.message)}`)
+    redirect(`/personas/${dni}/editar?error=${encodeURIComponent(bancoInicialErrorMessage(error.message))}`)
   }
 
   revalidatePath(`/personas/${dni}`)
