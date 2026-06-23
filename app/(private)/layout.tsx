@@ -43,6 +43,13 @@ export default async function PrivateLayout({
             </Link>
 
             <Link
+              href="/personas/banco-horas"
+              className="block rounded-lg px-3 py-2 text-sm text-zinc-200 transition hover:bg-zinc-800"
+            >
+              Banco inicial de horas
+            </Link>
+
+            <Link
               href="/agenda"
               className="block rounded-lg px-3 py-2 text-sm text-zinc-200 transition hover:bg-zinc-800"
             >
