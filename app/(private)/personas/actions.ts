@@ -7,6 +7,11 @@ import {
   canCurrentUserEditLegajo,
   canCurrentUserWriteFrancos,
 } from './permissions'
+import {
+  datosFichaFromFormData,
+  datosLaboralesFromFormData,
+  datosPersonalesFromFormData,
+} from './persona-form-data'
 
 function toNullableString(value: FormDataEntryValue | null) {
   const text = String(value ?? '').trim()
@@ -120,76 +125,17 @@ async function requireFrancosWrite(
   }
 }
 
-async function syncSituacionRevista(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  dni: number,
-  situacionId: number | null
-) {
-  const { error: deleteError } = await supabase
-    .from('persona_situacion_revista')
-    .delete()
-    .eq('dni', dni)
-
-  if (deleteError) {
-    throw new Error(deleteError.message)
-  }
-
-  if (situacionId === null) {
-    return
-  }
-
-  const { error: insertError } = await supabase
-    .from('persona_situacion_revista')
-    .insert({
-      dni,
-      situacion_id: situacionId,
-    })
-
-  if (insertError) {
-    throw new Error(insertError.message)
-  }
-}
-
-async function syncCarrera(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  dni: number,
-  carreraId: number
-) {
-  const { error } = await supabase
-    .from('persona_carreras')
-    .upsert(
-      {
-        dni,
-        carrera_id: carreraId,
-      },
-      {
-        onConflict: 'dni',
-      }
-    )
-
-  if (error) {
-    throw new Error(error.message)
-  }
-}
-
 export async function createPersona(formData: FormData) {
   const supabase = await createClient()
 
   await requireLegajoEdit(supabase, '/personas/nuevo')
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
   const dniRaw = String(formData.get('dni') ?? '').trim()
-  const apellido = String(formData.get('apellido') ?? '').trim()
-  const nombre = String(formData.get('nombre') ?? '').trim()
+  const datosPersonales = datosPersonalesFromFormData(formData)
+  const datosLaborales = datosLaboralesFromFormData(formData)
+  const datosFicha = datosFichaFromFormData(formData)
 
-  const legajo = toNullableInt(formData.get('legajo'))
-  const situacionId = toNullableInt(formData.get('situacion_id'))
-  const carreraIdRaw = toNullableInt(formData.get('carrera_id'))
-
-  if (!dniRaw || !apellido || !nombre) {
+  if (!dniRaw || !datosPersonales.apellido || !datosPersonales.nombre) {
     redirect('/personas/nuevo?error=Faltan%20campos%20obligatorios')
   }
 
@@ -199,63 +145,74 @@ export async function createPersona(formData: FormData) {
     redirect('/personas/nuevo?error=DNI%20inv%C3%A1lido')
   }
 
-  if (carreraIdRaw === null || carreraIdRaw <= 0) {
+  if (!datosLaborales.numerosValidos || !datosFicha.numerosValidos) {
+    redirect('/personas/nuevo?error=Los%20campos%20num%C3%A9ricos%20no%20son%20v%C3%A1lidos')
+  }
+
+  if (datosLaborales.carreraId === null || datosLaborales.carreraId <= 0) {
     redirect('/personas/nuevo?error=Debe%20seleccionar%20una%20carrera')
   }
 
-  const carreraId = carreraIdRaw
+  if (datosLaborales.situacionId === null || datosLaborales.situacionId <= 0) {
+    redirect('/personas/nuevo?error=Debe%20seleccionar%20una%20situaci%C3%B3n%20de%20revista')
+  }
+
+  const carreraId = datosLaborales.carreraId
   const horarioRotativo = formData.get('horario_rotativo') === 'on'
-  const asistenciaItems = asistenciaItemsFromFormData(
-    formData,
-    '/personas/nuevo'
-  )
+  const asistenciaItems = asistenciaItemsFromFormData(formData, '/personas/nuevo')
 
-  const payload = {
-    dni,
-    legajo,
-    apellido,
-    nombre,
-    email: toNullableString(formData.get('email')),
-    telefono: toNullableString(formData.get('telefono')),
-    fecha_nacimiento: toNullableDate(formData.get('fecha_nacimiento')),
-    horario_rotativo: horarioRotativo,
-    created_by: user?.id ?? null,
-    updated_by: user?.id ?? null,
+
+  const { error: guardarError } = await supabase.rpc('rpc_persona_guardar', {
+    p_dni: dni,
+    p_apellido: datosPersonales.apellido,
+    p_nombre: datosPersonales.nombre,
+    p_fecha_nacimiento: datosPersonales.fecha_nacimiento,
+    p_email: datosPersonales.email,
+    p_telefono: datosPersonales.telefono,
+    p_legajo: datosLaborales.legajo,
+    p_carrera_id: carreraId,
+    p_situacion_id: datosLaborales.situacionId,
+    p_horario_rotativo: horarioRotativo,
+    p_cuil: datosFicha.cuil,
+    p_reloj: datosFicha.reloj,
+    p_indice: datosFicha.indice,
+    p_sexo_id: datosFicha.sexoId,
+    p_numero_contacto: datosFicha.numeroContacto,
+    p_estado_civil: datosFicha.estadoCivil,
+    p_fecha_ingreso: datosFicha.fechaIngreso,
+    p_formacion_estudio: datosFicha.formacionEstudio,
+    p_matricula: datosFicha.matricula,
+    p_nivel_escolaridad: datosFicha.nivelEscolaridad,
+    p_fecha_inicio_tarea_especifica: datosFicha.fechaInicioTareaEspecifica,
+    p_observacion: datosFicha.observacion,
+    p_domicilio: datosFicha.domicilio,
+  })
+
+  if (guardarError) {
+    redirect(`/personas/nuevo?error=${encodeURIComponent(guardarError.message)}`)
   }
 
-  const { error } = await supabase.from('personas').insert(payload)
+  if (asistenciaItems.length > 0) {
+    await requireFrancosWrite(supabase, '/personas/nuevo')
 
-  if (error) {
-    redirect(`/personas/nuevo?error=${encodeURIComponent(error.message)}`)
-  }
-
-  try {
-    await syncCarrera(supabase, dni, carreraId)
-    await syncSituacionRevista(supabase, dni, situacionId)
-
-    if (asistenciaItems.length > 0) {
-      await requireFrancosWrite(supabase, '/personas/nuevo')
-
-      const { error: asistenciaError } = await supabase.rpc(
-        'rpc_francos_horario_guardar',
-        {
-          p_dni: dni,
-          p_carrera_id: carreraId,
-          p_items: asistenciaItems,
-        }
-      )
-
-      if (asistenciaError) {
-        throw new Error(asistenciaError.message)
+    const { error: asistenciaError } = await supabase.rpc(
+      'rpc_francos_horario_guardar',
+      {
+        p_dni: dni,
+        p_carrera_id: carreraId,
+        p_items: asistenciaItems,
       }
-    }
-  } catch (e) {
-    const message =
-      e instanceof Error
-        ? e.message
-        : 'No se pudo guardar la carrera, situación de revista o asistencia'
+    )
 
-    redirect(`/personas/nuevo?error=${encodeURIComponent(message)}`)
+    if (asistenciaError) {
+      revalidatePath('/personas')
+      revalidatePath(`/personas/${dni}`)
+      redirect(
+        `/personas/${dni}/editar?error=${encodeURIComponent(
+          `La persona fue creada, pero no se pudo guardar la asistencia: ${asistenciaError.message}`
+        )}`
+      )
+    }
   }
 
   revalidatePath('/personas')
@@ -275,64 +232,61 @@ export async function updatePersona(formData: FormData) {
 
   await requireLegajoEdit(supabase, `/personas/${dni}/editar`)
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const datosPersonales = datosPersonalesFromFormData(formData)
+  const datosLaborales = datosLaboralesFromFormData(formData)
+  const datosFicha = datosFichaFromFormData(formData)
 
-  const apellido = String(formData.get('apellido') ?? '').trim()
-  const nombre = String(formData.get('nombre') ?? '').trim()
-
-  const legajo = toNullableInt(formData.get('legajo'))
-  const situacionId = toNullableInt(formData.get('situacion_id'))
-  const carreraIdRaw = toNullableInt(formData.get('carrera_id'))
-
-  if (!dniRaw || !apellido || !nombre) {
+  if (!dniRaw || !datosPersonales.apellido || !datosPersonales.nombre) {
     redirect('/personas?error=Faltan%20campos%20obligatorios')
   }
 
-  if (carreraIdRaw === null || carreraIdRaw <= 0) {
+  if (!datosLaborales.numerosValidos || !datosFicha.numerosValidos) {
+    redirect(`/personas/${dni}/editar?error=Los%20campos%20num%C3%A9ricos%20no%20son%20v%C3%A1lidos`)
+  }
+
+  if (datosLaborales.carreraId === null || datosLaborales.carreraId <= 0) {
     redirect(`/personas/${dni}/editar?error=Debe%20seleccionar%20una%20carrera`)
   }
 
-  const carreraId = carreraIdRaw
 
-  const payload = {
-    legajo,
-    apellido,
-    nombre,
-    email: toNullableString(formData.get('email')),
-    telefono: toNullableString(formData.get('telefono')),
-    fecha_nacimiento: toNullableDate(formData.get('fecha_nacimiento')),
-    updated_at: new Date().toISOString(),
-    updated_by: user?.id ?? null,
-  }
+  const { error: guardarError } = await supabase.rpc('rpc_persona_guardar', {
+    p_dni: dni,
+    p_apellido: datosPersonales.apellido,
+    p_nombre: datosPersonales.nombre,
+    p_fecha_nacimiento: datosPersonales.fecha_nacimiento,
+    p_email: datosPersonales.email,
+    p_telefono: datosPersonales.telefono,
+    p_legajo: datosLaborales.legajo,
+    p_carrera_id: datosLaborales.carreraId,
+    p_situacion_id: datosLaborales.situacionId,
+    p_horario_rotativo: null,
+    p_cuil: datosFicha.cuil,
+    p_reloj: datosFicha.reloj,
+    p_indice: datosFicha.indice,
+    p_sexo_id: datosFicha.sexoId,
+    p_numero_contacto: datosFicha.numeroContacto,
+    p_estado_civil: datosFicha.estadoCivil,
+    p_fecha_ingreso: datosFicha.fechaIngreso,
+    p_formacion_estudio: datosFicha.formacionEstudio,
+    p_matricula: datosFicha.matricula,
+    p_nivel_escolaridad: datosFicha.nivelEscolaridad,
+    p_fecha_inicio_tarea_especifica: datosFicha.fechaInicioTareaEspecifica,
+    p_observacion: datosFicha.observacion,
+    p_domicilio: datosFicha.domicilio,
+  })
 
-  const { error } = await supabase
-    .from('personas')
-    .update(payload)
-    .eq('dni', dni)
-
-  if (error) {
-    redirect(`/personas/${dni}/editar?error=${encodeURIComponent(bancoInicialErrorMessage(error.message))}`)
-  }
-
-  try {
-    await syncCarrera(supabase, dni, carreraId)
-    await syncSituacionRevista(supabase, dni, situacionId)
-  } catch (e) {
-    const message =
-      e instanceof Error
-        ? e.message
-        : 'No se pudo guardar la carrera o la situación de revista'
-
-    redirect(`/personas/${dni}/editar?error=${encodeURIComponent(message)}`)
+  if (guardarError) {
+    redirect(
+      `/personas/${dni}/editar?error=${encodeURIComponent(
+        bancoInicialErrorMessage(guardarError.message)
+      )}`
+    )
   }
 
   revalidatePath('/personas')
   revalidatePath(`/personas/${dni}`)
   redirect(`/personas/${dni}`)
 }
-
 export async function updateAsistenciaPersona(formData: FormData) {
   const supabase = await createClient()
 
@@ -568,6 +522,166 @@ export async function deleteBancoInicialHoras(formData: FormData) {
   revalidatePath(`/personas/${dni}`)
   revalidatePath(`/personas/${dni}/editar`)
   redirect(`/personas/${dni}/editar`)
+}
+
+function familiarFromFormData(formData: FormData) {
+  return {
+    apellido: String(formData.get('familiar_apellido') ?? '').trim(),
+    nombre: String(formData.get('familiar_nombre') ?? '').trim(),
+    fecha_nacimiento: toNullableDate(
+      formData.get('familiar_fecha_nacimiento')
+    ),
+    dni: toNullableInt(formData.get('familiar_dni')),
+    parentesco: String(formData.get('familiar_parentesco') ?? '').trim(),
+  }
+}
+
+function validateFamiliar(
+  familiar: ReturnType<typeof familiarFromFormData>,
+  redirectTo: string
+) {
+  if (!familiar.apellido || !familiar.nombre || !familiar.parentesco) {
+    redirect(`${redirectTo}?error=${encodeURIComponent('Completá apellido, nombre y parentesco del familiar')}`)
+  }
+
+  if (familiar.dni !== null && familiar.dni <= 0) {
+    redirect(`${redirectTo}?error=${encodeURIComponent('El DNI del familiar no es válido')}`)
+  }
+
+  if (
+    familiar.fecha_nacimiento &&
+    familiar.fecha_nacimiento > new Date().toISOString().slice(0, 10)
+  ) {
+    redirect(`${redirectTo}?error=${encodeURIComponent('La fecha de nacimiento del familiar no puede ser futura')}`)
+  }
+}
+
+function familiarErrorMessage(error: { code?: string; message: string }) {
+  if (
+    error.code === '23505' &&
+    error.message.includes('persona_familiares_persona_dni_familiar_dni_uidx')
+  ) {
+    return 'Ya existe un familiar cargado con ese DNI. Usá Editar sobre el registro existente.'
+  }
+
+  return error.message
+}
+
+export async function createFamiliar(formData: FormData) {
+  const supabase = await createClient()
+  const personaDni = Number(formData.get('dni'))
+  const redirectTo = `/personas/${personaDni}/editar`
+
+  if (!Number.isInteger(personaDni) || personaDni <= 0) {
+    redirect('/personas?error=DNI%20inv%C3%A1lido')
+  }
+
+  await requireLegajoEdit(supabase, redirectTo)
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  const familiar = familiarFromFormData(formData)
+  validateFamiliar(familiar, redirectTo)
+
+  const { error } = await supabase.from('persona_familiares').insert({
+    persona_dni: personaDni,
+    ...familiar,
+    created_by: user.id,
+    updated_by: user.id,
+  })
+
+  if (error) {
+    redirect(`${redirectTo}?error=${encodeURIComponent(familiarErrorMessage(error))}`)
+  }
+
+  revalidatePath(`/personas/${personaDni}`)
+  revalidatePath(redirectTo)
+  redirect(redirectTo)
+}
+
+export async function updateFamiliar(formData: FormData) {
+  const supabase = await createClient()
+  const personaDni = Number(formData.get('dni'))
+  const familiarId = Number(formData.get('familiar_id'))
+  const redirectTo = `/personas/${personaDni}/editar`
+
+  if (
+    !Number.isInteger(personaDni) ||
+    personaDni <= 0 ||
+    !Number.isInteger(familiarId) ||
+    familiarId <= 0
+  ) {
+    redirect('/personas?error=Datos%20inv%C3%A1lidos')
+  }
+
+  await requireLegajoEdit(supabase, redirectTo)
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  const familiar = familiarFromFormData(formData)
+  validateFamiliar(familiar, redirectTo)
+
+  const { error } = await supabase
+    .from('persona_familiares')
+    .update({
+      ...familiar,
+      updated_by: user.id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', familiarId)
+    .eq('persona_dni', personaDni)
+
+  if (error) {
+    redirect(`${redirectTo}?error=${encodeURIComponent(familiarErrorMessage(error))}`)
+  }
+
+  revalidatePath(`/personas/${personaDni}`)
+  revalidatePath(redirectTo)
+  redirect(redirectTo)
+}
+
+export async function deleteFamiliar(formData: FormData) {
+  const supabase = await createClient()
+  const personaDni = Number(formData.get('dni'))
+  const familiarId = Number(formData.get('familiar_id'))
+  const redirectTo = `/personas/${personaDni}/editar`
+
+  if (
+    !Number.isInteger(personaDni) ||
+    personaDni <= 0 ||
+    !Number.isInteger(familiarId) ||
+    familiarId <= 0
+  ) {
+    redirect('/personas?error=Datos%20inv%C3%A1lidos')
+  }
+
+  await requireLegajoEdit(supabase, redirectTo)
+
+  const { error } = await supabase
+    .from('persona_familiares')
+    .delete()
+    .eq('id', familiarId)
+    .eq('persona_dni', personaDni)
+
+  if (error) {
+    redirect(`${redirectTo}?error=${encodeURIComponent(error.message)}`)
+  }
+
+  revalidatePath(`/personas/${personaDni}`)
+  revalidatePath(redirectTo)
+  redirect(redirectTo)
 }
 
 export async function inactivarPersona(formData: FormData) {

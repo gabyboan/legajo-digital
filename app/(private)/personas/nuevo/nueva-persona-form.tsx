@@ -3,31 +3,35 @@
 import Link from 'next/link'
 import { useRef, useState } from 'react'
 import { createPersona } from '../actions'
+import { DatosFichaAdicionales } from '../components/datos-ficha-adicionales'
 
 type Option = {
   id: number
   nombre: string
 }
 
+
 type NuevaPersonaFormProps = {
   situaciones: Option[]
   carreras: Option[]
+  sexos: Option[]
   canEditAsistencia: boolean
 }
 
 const DIAS_SEMANA = [
   { id: 1, label: 'Lunes' },
   { id: 2, label: 'Martes' },
-  { id: 3, label: 'Miércoles' },
+  { id: 3, label: 'MiÃ©rcoles' },
   { id: 4, label: 'Jueves' },
   { id: 5, label: 'Viernes' },
-  { id: 6, label: 'Sábado' },
+  { id: 6, label: 'SÃ¡bado' },
   { id: 7, label: 'Domingo' },
 ]
 
 export function NuevaPersonaForm({
   situaciones,
   carreras,
+  sexos,
   canEditAsistencia,
 }: NuevaPersonaFormProps) {
   const [step, setStep] = useState<1 | 2>(1)
@@ -81,7 +85,11 @@ export function NuevaPersonaForm({
 
       <div className={step === 1 ? 'space-y-6' : 'hidden'}>
         <div className="grid gap-4 md:grid-cols-2">
-          <div>
+          <div className="order-[1] md:col-span-2">
+            <h2 className="text-lg font-semibold">Datos personales</h2>
+            <p className="mt-1 text-sm text-zinc-400">Identificacion y contacto.</p>
+          </div>
+          <div className="order-[2]">
             <label htmlFor="dni" className="mb-2 block text-sm text-zinc-300">
               DNI *
             </label>
@@ -94,7 +102,7 @@ export function NuevaPersonaForm({
             />
           </div>
 
-          <div>
+          <div className="order-[9]">
             <label htmlFor="legajo" className="mb-2 block text-sm text-zinc-300">
               Legajo
             </label>
@@ -106,7 +114,7 @@ export function NuevaPersonaForm({
             />
           </div>
 
-          <div>
+          <div className="order-[3]">
             <label
               htmlFor="fecha_nacimiento"
               className="mb-2 block text-sm text-zinc-300"
@@ -121,7 +129,7 @@ export function NuevaPersonaForm({
             />
           </div>
 
-          <div>
+          <div className="order-[4]">
             <label
               htmlFor="apellido"
               className="mb-2 block text-sm text-zinc-300"
@@ -137,7 +145,7 @@ export function NuevaPersonaForm({
             />
           </div>
 
-          <div>
+          <div className="order-[5]">
             <label htmlFor="nombre" className="mb-2 block text-sm text-zinc-300">
               Nombre *
             </label>
@@ -150,7 +158,7 @@ export function NuevaPersonaForm({
             />
           </div>
 
-          <div>
+          <div className="order-[6]">
             <label htmlFor="email" className="mb-2 block text-sm text-zinc-300">
               Email
             </label>
@@ -162,12 +170,12 @@ export function NuevaPersonaForm({
             />
           </div>
 
-          <div>
+          <div className="order-[7]">
             <label
               htmlFor="telefono"
               className="mb-2 block text-sm text-zinc-300"
             >
-              Teléfono
+              TelÃ©fono
             </label>
             <input
               id="telefono"
@@ -177,7 +185,14 @@ export function NuevaPersonaForm({
             />
           </div>
 
-          <div>
+          <DatosFichaAdicionales sexos={sexos} />
+
+          <div className="order-[8] md:col-span-2 border-t border-zinc-800 pt-5">
+            <h2 className="text-lg font-semibold">Datos laborales</h2>
+            <p className="mt-1 text-sm text-zinc-400">Vinculo administrativo, carrera y situacion de revista.</p>
+          </div>
+
+          <div className="order-[10]">
             <label
               htmlFor="carrera_id"
               className="mb-2 block text-sm text-zinc-300"
@@ -200,27 +215,25 @@ export function NuevaPersonaForm({
             </select>
           </div>
 
-          <div className="md:col-span-2">
-            <label
-              htmlFor="situacion_id"
-              className="mb-2 block text-sm text-zinc-300"
-            >
-              Situación de Revista
-            </label>
-            <select
-              id="situacion_id"
-              name="situacion_id"
-              defaultValue=""
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none focus:border-zinc-500"
-            >
-              <option value="">Seleccionar</option>
-              {situaciones.map((situacion) => (
-                <option key={situacion.id} value={situacion.id}>
-                  {situacion.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
+          <div className="order-[11] md:col-span-2">
+  <label htmlFor="situacion_id" className="mb-2 block text-sm text-zinc-300">
+    SituaciÃ³n de revista *
+  </label>
+  <select
+    id="situacion_id"
+    name="situacion_id"
+    defaultValue=""
+    required
+    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none focus:border-zinc-500"
+  >
+    <option value="">Seleccionar</option>
+    {situaciones.map((situacion) => (
+        <option key={situacion.id} value={situacion.id}>
+          {situacion.nombre}
+        </option>
+      ))}
+  </select>
+</div>
         </div>
 
         <div className="flex items-center gap-3">
@@ -263,7 +276,7 @@ export function NuevaPersonaForm({
             Horario rotativo
           </span>
           <span className="mt-2 block text-sm text-cyan-100/75">
-            30 horas semanales en turnos de 6 horas: mañana 06:00 a 12:00,
+            30 horas semanales en turnos de 6 horas: maÃ±ana 06:00 a 12:00,
             vespertino 12:00 a 18:00, tarde 18:00 a 00:00 y noche 00:00 a 06:00.
           </span>
         </label>

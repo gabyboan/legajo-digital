@@ -29,7 +29,7 @@ export default async function NuevaPersonaPage({
     )
   }
 
-  const [situacionesRes, carrerasRes, canWriteFrancos] = await Promise.all([
+  const [situacionesRes, carrerasRes, sexosRes, canWriteFrancos] = await Promise.all([
     supabase
       .from('situacion_revista')
       .select('id, nombre')
@@ -40,11 +40,17 @@ export default async function NuevaPersonaPage({
       .select('id, nombre')
       .order('id', { ascending: true }),
 
+    supabase
+      .from('sexos')
+      .select('id, nombre')
+      .order('id', { ascending: true }),
+
     canCurrentUserWriteFrancos(supabase),
   ])
 
   const situaciones = situacionesRes.data ?? []
   const carreras = carrerasRes.data ?? []
+  const sexos = sexosRes.data ?? []
 
   return (
     <section className="mx-auto max-w-3xl space-y-6">
@@ -83,6 +89,7 @@ export default async function NuevaPersonaPage({
       <NuevaPersonaForm
         situaciones={situaciones}
         carreras={carreras}
+        sexos={sexos}
         canEditAsistencia={canWriteFrancos}
       />
     </section>

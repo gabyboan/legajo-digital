@@ -11,6 +11,10 @@ import {
   type BancoInicialHoras,
 } from './components/banco-inicial-horas-form'
 import { PersonaEditForm } from './components/persona-edit-form'
+import {
+  FamiliaresEditForm,
+  type Familiar,
+} from './components/familiares-edit-form'
 
 type EditarPersonaPageProps = {
   params: Promise<{ dni: string }>
@@ -29,6 +33,14 @@ function ErrorBanner({ message }: { message: string }) {
       {message}
     </div>
   )
+}
+
+function humanizeError(message: string) {
+  if (message.includes('persona_familiares_persona_dni_familiar_dni_uidx')) {
+    return 'Ya existe un familiar cargado con ese DNI. Usá Editar sobre el registro existente.'
+  }
+
+  return message
 }
 
 export default async function EditarPersonaPage({
@@ -60,11 +72,14 @@ export default async function EditarPersonaPage({
     situacionActualRes,
     carrerasRes,
     carreraActualRes,
+    familiaresRes,
+    sexosRes,
+    domicilioRes,
   ] = await Promise.all([
     supabase
       .from('personas')
       .select(
-        'dni, legajo, apellido, nombre, email, telefono, fecha_nacimiento, horario_rotativo'
+        'dni, legajo, apellido, nombre, email, telefono, fecha_nacimiento, horario_rotativo, cuil, reloj, indice, sexo_id, numero_contacto, estado_civil, fecha_ingreso, formacion_estudio, matricula, nivel_escolaridad, fecha_inicio_tarea_especifica, observacion'
       )
       .eq('dni', dniNumber)
       .maybeSingle(),
@@ -78,7 +93,7 @@ export default async function EditarPersonaPage({
       .from('persona_situacion_revista')
       .select('situacion_id')
       .eq('dni', dniNumber)
-      .limit(1),
+      .order('situacion_id'),
 
     supabase
       .from('carreras')
@@ -90,6 +105,25 @@ export default async function EditarPersonaPage({
       .select('carrera_id')
       .eq('dni', dniNumber)
       .limit(1),
+
+    supabase
+      .from('persona_familiares')
+      .select('id, apellido, nombre, fecha_nacimiento, dni, parentesco')
+      .eq('persona_dni', dniNumber)
+      .order('apellido')
+      .order('nombre'),
+
+    supabase
+      .from('sexos')
+      .select('id, nombre')
+      .order('id', { ascending: true }),
+
+    supabase
+      .from('persona_domicilios')
+      .select('calle, numero, barrio, manzana, lote, monoblock, piso, departamento, referencias, otros_datos, provincia_georef_id, provincia_nombre, localidad_georef_id, localidad_nombre')
+      .eq('persona_dni', dniNumber)
+      .is('vigente_hasta', null)
+      .maybeSingle()
   ])
 
   if (personaRes.error) {
@@ -104,6 +138,8 @@ export default async function EditarPersonaPage({
 
   const situaciones = situacionesRes.data ?? []
   const carreras = carrerasRes.data ?? []
+  const sexos = sexosRes.data ?? []
+  const domicilio = domicilioRes.data
 
   const situacionActualId =
     situacionActualRes.data && situacionActualRes.data.length > 0
@@ -154,7 +190,7 @@ export default async function EditarPersonaPage({
         <h1 className="mt-3 text-2xl font-bold">Editar persona</h1>
       </div>
 
-      {error ? <ErrorBanner message={error} /> : null}
+      {error ? <ErrorBanner message={humanizeError(error)} /> : null}
       {situacionesRes.error ? (
         <ErrorBanner
           message={`Error al cargar Situacion de Revista: ${situacionesRes.error.message}`}
@@ -164,6 +200,9 @@ export default async function EditarPersonaPage({
         <ErrorBanner
           message={`Error al cargar Carreras: ${carrerasRes.error.message}`}
         />
+      ) : null}
+      {familiaresRes.error ? (
+        <ErrorBanner message={`Error al cargar familiares: ${familiaresRes.error.message}`} />
       ) : null}
       {horariosActualesRes.error && carreraActualId ? (
         <ErrorBanner
@@ -180,6 +219,8 @@ export default async function EditarPersonaPage({
         persona={persona}
         situaciones={situaciones}
         carreras={carreras}
+        sexos={sexos}
+        domicilio={domicilio}
         situacionActualId={situacionActualId}
         carreraActualId={carreraActualId}
       />
@@ -190,6 +231,11 @@ export default async function EditarPersonaPage({
         canEditAsistencia={canWriteFrancos}
         horariosPorDia={horariosPorDia}
         horarioRotativo={persona.horario_rotativo}
+      />
+
+      <FamiliaresEditForm
+        personaDni={persona.dni}
+        familiares={(familiaresRes.data ?? []) as Familiar[]}
       />
 
       <BancoInicialHorasForm

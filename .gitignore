@@ -43,3 +43,6 @@ next-env.d.ts
 
 # supabase local cache
 supabase/.temp/
+
+# SQL files are local only
+*.sql
