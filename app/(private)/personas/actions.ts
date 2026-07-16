@@ -696,17 +696,18 @@ export async function inactivarPersona(formData: FormData) {
   await requireLegajoEdit(supabase, `/personas/${dni}`)
 
   const causa = String(formData.get('causa') ?? '').trim()
+  const fechaDesde = toNullableDate(formData.get('fecha_desde'))
   const observaciones = toNullableString(formData.get('observaciones'))
 
-  if (!causa) {
+  if (!causa || !fechaDesde) {
     redirect('/personas?error=Datos%20inv%C3%A1lidos')
   }
 
-  const { error } = await supabase.from('persona_inactivo').upsert({
-    dni,
-    causa,
-    observaciones,
-    fecha: new Date().toISOString().slice(0, 10),
+  const { error } = await supabase.rpc('rpc_persona_inactivar', {
+    p_dni: dni,
+    p_causa: causa,
+    p_fecha_desde: fechaDesde,
+    p_observaciones: observaciones,
   })
 
   if (error) {
@@ -729,10 +730,16 @@ export async function reactivarPersona(formData: FormData) {
 
   await requireLegajoEdit(supabase, `/personas/${dni}`)
 
-  const { error } = await supabase
-    .from('persona_inactivo')
-    .delete()
-    .eq('dni', dni)
+  const fechaHasta = toNullableDate(formData.get('fecha_hasta'))
+
+  if (!fechaHasta) {
+    redirect(`/personas/${dni}?error=Fecha%20de%20reactivaci%C3%B3n%20inv%C3%A1lida`)
+  }
+
+  const { error } = await supabase.rpc('rpc_persona_reactivar', {
+    p_dni: dni,
+    p_fecha_hasta: fechaHasta,
+  })
 
   if (error) {
     redirect(`/personas/${dni}?error=${encodeURIComponent(error.message)}`)

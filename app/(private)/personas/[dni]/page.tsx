@@ -66,6 +66,7 @@ export default async function PersonaDetallePage({
   const [
     personaRes,
     inactivoRes,
+    periodosInactividadRes,
     situacionActualRes,
     carreraActualRes,
     familiaresRes,
@@ -86,6 +87,12 @@ export default async function PersonaDetallePage({
       .select('dni, causa, fecha, observaciones')
       .eq('dni', dniNumber)
       .maybeSingle(),
+
+    supabase
+      .from('persona_inactividad_periodos')
+      .select('id, causa, fecha_desde, fecha_hasta, observaciones')
+      .eq('persona_dni', dniNumber)
+      .order('fecha_desde', { ascending: false }),
 
     supabase
       .from('persona_situacion_revista')
@@ -131,6 +138,7 @@ export default async function PersonaDetallePage({
 
   const persona = personaRes.data
   const inactivo = inactivoRes.data
+  const periodosInactividad = periodosInactividadRes.data ?? []
   const sexoNombre = sexosRes.data?.find((sexo) => sexo.id === persona.sexo_id)?.nombre ?? '-'
   const domicilio = domicilioRes.data as Partial<DomicilioValores> | null
 
@@ -183,6 +191,11 @@ export default async function PersonaDetallePage({
           message={`Error al cargar estado del legajo: ${inactivoRes.error.message}`}
         />
       ) : null}
+      {periodosInactividadRes.error ? (
+        <ErrorBanner
+          message={`Error al cargar historial de inactividad: ${periodosInactividadRes.error.message}`}
+        />
+      ) : null}
       {situacionActualRes.error ? (
         <ErrorBanner
           message={`Error al cargar situacion de revista: ${situacionActualRes.error.message}`}
@@ -230,6 +243,7 @@ export default async function PersonaDetallePage({
           <EstadoLegajoCard
             dni={persona.dni}
             inactivo={inactivo}
+            periodos={periodosInactividad}
             canEdit={canEdit}
           />
 
