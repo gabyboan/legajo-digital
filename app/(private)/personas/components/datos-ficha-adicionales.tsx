@@ -35,6 +35,7 @@ export type FichaPersonaValores = {
   formacion_estudio: string | null
   matricula: string | null
   nivel_escolaridad: string | null
+  estado_escolaridad: string | null
   fecha_inicio_tarea_especifica: string | null
   observacion: string | null
 }
@@ -118,12 +119,10 @@ export function DatosFichaAdicionales({ sexos, ficha = {}, domicilio }: Props) {
 
   useEffect(() => {
     if (!provinciaId) {
-      setLocalidades([])
       return
     }
 
     let activo = true
-    setCargandoLocalidades(true)
 
     async function cargarLocalidades() {
       try {
@@ -192,7 +191,15 @@ export function DatosFichaAdicionales({ sexos, ficha = {}, domicilio }: Props) {
         <input id="numero_contacto" name="numero_contacto" type="number" min="1" defaultValue={ficha.numero_contacto ?? ''} className={inputClass} />
       </Field>
       <Field id="estado_civil" label="Estado civil">
-        <input id="estado_civil" name="estado_civil" type="text" defaultValue={ficha.estado_civil ?? ''} className={inputClass} />
+        <select id="estado_civil" name="estado_civil" defaultValue={ficha.estado_civil ?? ''} className={inputClass}>
+          <option value="">Seleccionar</option>
+          <option value="casado/a">Casado/a</option>
+          <option value="divorciado/a">Divorciado/a</option>
+          <option value="separado/a">Separado/a</option>
+          <option value="viudo/a">Viudo/a</option>
+          <option value="concubinato">Concubinato</option>
+          <option value="soltero/a">Soltero/a</option>
+        </select>
       </Field>
 
       <div className="border-t border-zinc-800 pt-5 md:col-span-2">
@@ -208,10 +215,26 @@ export function DatosFichaAdicionales({ sexos, ficha = {}, domicilio }: Props) {
         <textarea id="formacion_estudio" name="formacion_estudio" rows={3} defaultValue={ficha.formacion_estudio ?? ''} className={inputClass} />
       </Field>
       <Field id="matricula" label="Matrícula">
-        <input id="matricula" name="matricula" type="text" defaultValue={ficha.matricula ?? ''} className={inputClass} />
+        <input id="matricula" name="matricula" type="text" maxLength={10} defaultValue={ficha.matricula ?? ''} className={inputClass} />
       </Field>
       <Field id="nivel_escolaridad" label="Nivel de escolaridad">
-        <input id="nivel_escolaridad" name="nivel_escolaridad" type="text" defaultValue={ficha.nivel_escolaridad ?? ''} className={inputClass} />
+        <select id="nivel_escolaridad" name="nivel_escolaridad" defaultValue={ficha.nivel_escolaridad ?? ''} className={inputClass}>
+          <option value="">Seleccionar</option>
+          <option value="secundaria">Secundaria</option>
+          <option value="terciaria">Terciaria</option>
+          <option value="universitario">Universitario</option>
+          <option value="doctorado">Doctorado</option>
+          <option value="magister">Magister</option>
+          <option value="diplomado">Diplomado</option>
+        </select>
+      </Field>
+      <Field id="estado_escolaridad" label="Estado de escolaridad">
+        <select id="estado_escolaridad" name="estado_escolaridad" defaultValue={ficha.estado_escolaridad ?? ''} className={inputClass}>
+          <option value="">Seleccionar</option>
+          <option value="completo">Completo</option>
+          <option value="incompleto">Incompleto</option>
+          <option value="en curso">En curso</option>
+        </select>
       </Field>
       <Field id="observacion" label="Observaciones" className="md:col-span-2">
         <textarea id="observacion" name="observacion" rows={3} defaultValue={ficha.observacion ?? ''} className={inputClass} />

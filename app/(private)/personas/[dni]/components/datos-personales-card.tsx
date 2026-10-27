@@ -21,6 +21,7 @@ type Persona = {
   formacion_estudio: string | null
   matricula: string | null
   nivel_escolaridad: string | null
+  estado_escolaridad: string | null
   fecha_inicio_tarea_especifica: string | null
   observacion: string | null
 }
@@ -66,6 +67,7 @@ export function DatosPersonalesCard({ persona, sexo, domicilio }: Props) {
         <Field label="Formación / estudio" value={persona.formacion_estudio} />
         <Field label="Matrícula" value={persona.matricula} />
         <Field label="Nivel de escolaridad" value={persona.nivel_escolaridad} />
+        <Field label="Estado de escolaridad" value={persona.estado_escolaridad} />
         <Field label="Observaciones" value={persona.observacion} />
       </dl>
 

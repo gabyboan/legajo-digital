@@ -77,7 +77,7 @@ export default async function PersonaDetallePage({
     supabase
       .from('personas')
       .select(
-        'dni, legajo, apellido, nombre, email, telefono, fecha_nacimiento, created_at, updated_at, horario_rotativo, cuil, reloj, indice, sexo_id, numero_contacto, estado_civil, fecha_ingreso, formacion_estudio, matricula, nivel_escolaridad, fecha_inicio_tarea_especifica, observacion'
+        'dni, legajo, apellido, nombre, email, telefono, fecha_nacimiento, created_at, updated_at, horario_rotativo, cuil, reloj, indice, sexo_id, numero_contacto, estado_civil, fecha_ingreso, formacion_estudio, matricula, nivel_escolaridad, estado_escolaridad, fecha_inicio_tarea_especifica, observacion'
       )
       .eq('dni', dniNumber)
       .maybeSingle(),
@@ -108,7 +108,7 @@ export default async function PersonaDetallePage({
 
     supabase
       .from('persona_familiares')
-      .select('id, apellido, nombre, fecha_nacimiento, dni, parentesco')
+      .select('id, apellido, nombre, fecha_nacimiento, dni, parentesco, fallecido')
       .eq('persona_dni', dniNumber)
       .order('apellido')
       .order('nombre'),

@@ -12,9 +12,9 @@ import {
 } from './components/banco-inicial-horas-form'
 import { PersonaEditForm } from './components/persona-edit-form'
 import {
-  FamiliaresEditForm,
-  type Familiar,
-} from './components/familiares-edit-form'
+  normalizarSituacionesRevista,
+} from '@/lib/situaciones-revista'
+import { carreraVisible } from '@/lib/carreras'
 
 type EditarPersonaPageProps = {
   params: Promise<{ dni: string }>
@@ -72,14 +72,13 @@ export default async function EditarPersonaPage({
     situacionActualRes,
     carrerasRes,
     carreraActualRes,
-    familiaresRes,
     sexosRes,
     domicilioRes,
   ] = await Promise.all([
     supabase
       .from('personas')
       .select(
-        'dni, legajo, apellido, nombre, email, telefono, fecha_nacimiento, horario_rotativo, cuil, reloj, indice, sexo_id, numero_contacto, estado_civil, fecha_ingreso, formacion_estudio, matricula, nivel_escolaridad, fecha_inicio_tarea_especifica, observacion'
+        'dni, legajo, apellido, nombre, email, telefono, fecha_nacimiento, horario_rotativo, cuil, reloj, indice, sexo_id, numero_contacto, estado_civil, fecha_ingreso, formacion_estudio, matricula, nivel_escolaridad, estado_escolaridad, fecha_inicio_tarea_especifica, observacion'
       )
       .eq('dni', dniNumber)
       .maybeSingle(),
@@ -107,13 +106,6 @@ export default async function EditarPersonaPage({
       .limit(1),
 
     supabase
-      .from('persona_familiares')
-      .select('id, apellido, nombre, fecha_nacimiento, dni, parentesco')
-      .eq('persona_dni', dniNumber)
-      .order('apellido')
-      .order('nombre'),
-
-    supabase
       .from('sexos')
       .select('id, nombre')
       .order('id', { ascending: true }),
@@ -136,8 +128,10 @@ export default async function EditarPersonaPage({
     notFound()
   }
 
-  const situaciones = situacionesRes.data ?? []
-  const carreras = carrerasRes.data ?? []
+  const situaciones = normalizarSituacionesRevista(situacionesRes.data ?? [])
+  const carreras = (carrerasRes.data ?? []).filter((carrera) =>
+    carreraVisible(carrera.nombre)
+  )
   const sexos = sexosRes.data ?? []
   const domicilio = domicilioRes.data
 
@@ -201,9 +195,6 @@ export default async function EditarPersonaPage({
           message={`Error al cargar Carreras: ${carrerasRes.error.message}`}
         />
       ) : null}
-      {familiaresRes.error ? (
-        <ErrorBanner message={`Error al cargar familiares: ${familiaresRes.error.message}`} />
-      ) : null}
       {horariosActualesRes.error && carreraActualId ? (
         <ErrorBanner
           message={`Error al cargar asistencia: ${horariosActualesRes.error.message}`}
@@ -231,11 +222,6 @@ export default async function EditarPersonaPage({
         canEditAsistencia={canWriteFrancos}
         horariosPorDia={horariosPorDia}
         horarioRotativo={persona.horario_rotativo}
-      />
-
-      <FamiliaresEditForm
-        personaDni={persona.dni}
-        familiares={(familiaresRes.data ?? []) as Familiar[]}
       />
 
       <BancoInicialHorasForm

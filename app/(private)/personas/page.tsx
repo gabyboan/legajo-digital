@@ -1,9 +1,42 @@
 import Link from 'next/link'
 import { createClient } from '@/utils/supabase/server'
 import { canCurrentUserEditLegajo } from './permissions'
+import { limpiarBusqueda, ordenarPersonasPorCoincidencia } from '@/lib/buscar-personas'
+import { carreraVisible } from '@/lib/carreras'
 
 type PersonasPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>
+}
+
+type PersonaRow = {
+  dni: number
+  apellido: string
+  nombre: string
+  persona_carreras?: {
+    carrera_id: number
+    carreras?: { nombre: string } | Array<{ nombre: string }> | null
+  } | Array<{
+    carrera_id: number
+    carreras?: { nombre: string } | Array<{ nombre: string }> | null
+  }> | null
+}
+
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value
+}
+
+function parseEstado(value: string | undefined) {
+  return value === 'activos' || value === 'inactivos' ? value : 'todos'
+}
+
+function carreraNombre(persona: PersonaRow) {
+  const personaCarrera = Array.isArray(persona.persona_carreras)
+    ? persona.persona_carreras[0]
+    : persona.persona_carreras
+  const relation = personaCarrera?.carreras
+  const carrera = Array.isArray(relation) ? relation[0] : relation
+
+  return carrera?.nombre?.trim() || 'Sin carrera'
 }
 
 export default async function PersonasPage({ searchParams }: PersonasPageProps) {
@@ -12,30 +45,31 @@ export default async function PersonasPage({ searchParams }: PersonasPageProps) 
 
   const rawQ = params.q
   const q = (Array.isArray(rawQ) ? rawQ[0] : rawQ ?? '').trim()
+  const carreraId = firstParam(params.carrera) ?? ''
+  const estado = parseEstado(firstParam(params.estado))
   const rawError = params.error
   const pageError = Array.isArray(rawError) ? rawError[0] : rawError
 
   let query = supabase
     .from('personas')
     .select(
-      'dni, apellido, nombre, email, telefono, fecha_nacimiento, created_at'
+      'dni, apellido, nombre, persona_carreras(carrera_id, carreras(nombre))'
     )
     .order('apellido', { ascending: true })
     .order('nombre', { ascending: true })
-    .limit(200)
+    .limit(2000)
 
   if (q) {
     if (/^\d+$/.test(q)) {
       query = query.eq('dni', Number(q))
-    } else {
-      query = query.or(`apellido.ilike.%${q}%,nombre.ilike.%${q}%`)
     }
   }
 
-  const [{ data: personas, error }, { data: inactivos }, canEdit] =
+  const [{ data: personasData, error }, { data: inactivos }, { data: carreras }, canEdit] =
     await Promise.all([
       query,
       supabase.from('persona_inactivo').select('dni'),
+      supabase.from('carreras').select('id, nombre').order('nombre'),
       canCurrentUserEditLegajo(supabase),
     ])
 
@@ -48,6 +82,32 @@ export default async function PersonasPage({ searchParams }: PersonasPageProps) 
   }
 
   const inactivosSet = new Set((inactivos ?? []).map((x) => String(x.dni)))
+  const personas = (personasData ?? []) as unknown as PersonaRow[]
+  const personasFiltradas = personas.filter((persona) => {
+    const personaCarrera = Array.isArray(persona.persona_carreras)
+      ? persona.persona_carreras[0]
+      : persona.persona_carreras
+    const tieneCarrera = carreraId
+      ? String(personaCarrera?.carrera_id) === carreraId
+      : true
+    const esActivo = !inactivosSet.has(String(persona.dni))
+    const coincideEstado =
+      estado === 'todos' || (estado === 'activos' ? esActivo : !esActivo)
+
+    return tieneCarrera && coincideEstado
+  })
+  const personasOrdenadas = q
+    ? ordenarPersonasPorCoincidencia(personasFiltradas, limpiarBusqueda(q)).slice(0, 200)
+    : personasFiltradas
+
+  const carrerasVisibles = (carreras ?? []).filter((carrera) =>
+    carreraVisible(carrera.nombre)
+  )
+  const exportParams = new URLSearchParams()
+  if (q) exportParams.set('q', q)
+  if (carreraId) exportParams.set('carrera', carreraId)
+  if (estado !== 'todos') exportParams.set('estado', estado)
+  const exportHref = `/api/personas/exportar?${exportParams.toString()}`
 
   return (
     <section className="space-y-6">
@@ -78,7 +138,7 @@ export default async function PersonasPage({ searchParams }: PersonasPageProps) 
       </div>
 
       <form className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <div className="flex flex-col gap-3 md:flex-row">
+        <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
           <input
             type="text"
             name="q"
@@ -86,12 +146,42 @@ export default async function PersonasPage({ searchParams }: PersonasPageProps) 
             placeholder="Buscar por apellido, nombre o DNI"
             className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none transition focus:border-zinc-500"
           />
+          <select
+            name="carrera"
+            defaultValue={carreraId}
+            className="rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none transition focus:border-zinc-500"
+          >
+            <option value="">Todas las carreras</option>
+            {carrerasVisibles.map((carrera) => (
+              <option key={carrera.id} value={carrera.id}>
+                {carrera.nombre}
+              </option>
+            ))}
+          </select>
+          <select
+            name="estado"
+            defaultValue={estado}
+            className="rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none transition focus:border-zinc-500"
+          >
+            <option value="todos">Todos los estados</option>
+            <option value="activos">Activos</option>
+            <option value="inactivos">Inactivos</option>
+          </select>
           <button
             type="submit"
             className="rounded-lg border border-zinc-700 px-4 py-3 text-sm transition hover:bg-zinc-800"
           >
             Buscar
           </button>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm text-zinc-400">
+          <span>{personasOrdenadas.length} personas encontradas</span>
+          <a
+            href={exportHref}
+            className="rounded-lg border border-emerald-700/70 px-4 py-2 text-emerald-300 transition hover:bg-emerald-900/30"
+          >
+            Exportar XLSX
+          </a>
         </div>
       </form>
 
@@ -108,19 +198,20 @@ export default async function PersonasPage({ searchParams }: PersonasPageProps) 
               <th className="px-4 py-3 text-left font-medium">DNI</th>
               <th className="px-4 py-3 text-left font-medium">Apellido</th>
               <th className="px-4 py-3 text-left font-medium">Nombre</th>
+              <th className="px-4 py-3 text-left font-medium">Carrera</th>
               <th className="px-4 py-3 text-left font-medium">Estado</th>
               <th className="px-4 py-3 text-left font-medium">Acción</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-800">
-            {(personas ?? []).length === 0 ? (
+            {personasOrdenadas.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-zinc-400">
+                <td colSpan={6} className="px-4 py-8 text-center text-zinc-400">
                   No se encontraron personas.
                 </td>
               </tr>
             ) : (
-              personas!.map((persona) => {
+              personasOrdenadas.map((persona) => {
                 const activo = !inactivosSet.has(String(persona.dni))
 
                 return (
@@ -128,6 +219,9 @@ export default async function PersonasPage({ searchParams }: PersonasPageProps) 
                     <td className="px-4 py-3">{persona.dni}</td>
                     <td className="px-4 py-3">{persona.apellido}</td>
                     <td className="px-4 py-3">{persona.nombre}</td>
+                    <td className="px-4 py-3">
+                      {carreraNombre(persona)}
+                    </td>
                     <td className="px-4 py-3">
                       <span
                         className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${

@@ -50,6 +50,24 @@ export default async function PrivateLayout({
             </Link>
 
             <Link
+              href="/personas/validacion-dni"
+              className="block rounded-lg px-3 py-2 text-sm text-zinc-200 transition hover:bg-zinc-800"
+            >
+              Validación de DNI
+            </Link>
+
+            <Link href="/personas/validacion-dni/familiares" className="block rounded-lg px-3 py-2 text-sm text-zinc-200 transition hover:bg-zinc-800">
+              Validación de DNI de familiares
+            </Link>
+
+            <Link
+              href="/personas/familiares"
+              className="block rounded-lg px-3 py-2 text-sm text-zinc-200 transition hover:bg-zinc-800"
+            >
+              Datos de Familiares
+            </Link>
+
+            <Link
               href="/agenda"
               className="block rounded-lg px-3 py-2 text-sm text-zinc-200 transition hover:bg-zinc-800"
             >

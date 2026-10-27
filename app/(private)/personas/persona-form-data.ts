@@ -37,6 +37,11 @@ function nullableDate(value: FormDataEntryValue | null) {
   return nullableString(value)
 }
 
+function nullableMaxLength(value: FormDataEntryValue | null, maxLength: number) {
+  const text = nullableString(value)
+  return text === null ? null : text.slice(0, maxLength)
+}
+
 export function datosPersonalesFromFormData(formData: FormData) {
   return {
     apellido: String(formData.get('apellido') ?? '').trim(),
@@ -79,8 +84,9 @@ export function datosFichaFromFormData(formData: FormData) {
     estadoCivil: nullableString(formData.get('estado_civil')),
     fechaIngreso: nullableDate(formData.get('fecha_ingreso')),
     formacionEstudio: nullableString(formData.get('formacion_estudio')),
-    matricula: nullableString(formData.get('matricula')),
+    matricula: nullableMaxLength(formData.get('matricula'), 10),
     nivelEscolaridad: nullableString(formData.get('nivel_escolaridad')),
+    estadoEscolaridad: nullableString(formData.get('estado_escolaridad')),
     fechaInicioTareaEspecifica: nullableDate(
       formData.get('fecha_inicio_tarea_especifica')
     ),

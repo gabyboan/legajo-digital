@@ -25,6 +25,7 @@ type Persona = {
   formacion_estudio: string | null
   matricula: string | null
   nivel_escolaridad: string | null
+  estado_escolaridad: string | null
   fecha_inicio_tarea_especifica: string | null
   observacion: string | null
 }
@@ -189,7 +190,7 @@ export function PersonaEditForm({
 
         <div className="order-[11] md:col-span-2">
   <label htmlFor="situacion_id" className="mb-2 block text-sm text-zinc-300">
-    SituaciÃ³n de revista *
+    Situación de revista *
   </label>
   <select
     id="situacion_id"

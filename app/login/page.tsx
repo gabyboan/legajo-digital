@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { login } from './actions'
+import { PasswordField } from './password-field'
 
 type LoginPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>
@@ -55,14 +56,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             <label htmlFor="password" className="mb-2 block text-sm text-zinc-300">
               Contraseña
             </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              placeholder="********"
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none transition focus:border-zinc-500"
-              required
-            />
+            <PasswordField />
           </div>
 
           <button
