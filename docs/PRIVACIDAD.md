@@ -11,7 +11,7 @@ archivos actuales que Git incluiría.
 El repositorio de GitHub ya era público. Se identificaron tres importaciones de
 personal en el historial de `agent/ficha-persona-ampliada`, incluido un CSV de
 262 registros con 250 DNI no vacíos. `main` no contiene esas importaciones.
-La referencia del PR #1 también apunta a la historia afectada.
+La referencia del PR #1 también apuntaba a la historia afectada.
 
 La copia del historial preparada localmente conserva los 14 commits del remoto
 y elimina los tres archivos de datos de todas sus versiones. Cambian tres
@@ -30,19 +30,28 @@ todos los datos personales posibles.
 
 ## Estado de la limpieza
 
-La revisión y la limpieza **locales** están preparadas. Esto no significa que se
-hayan retirado los datos de GitHub: falta autorizar y aplicar el reemplazo de
-`agent/ficha-persona-ampliada`. Las copias de seguridad contienen el historial
-original y deben permanecer locales, fuera del repositorio público.
+El reemplazo de `agent/ficha-persona-ampliada` se aplicó en GitHub el 27 de octubre
+de 2026, con autorización del propietario y comprobación de la versión anterior.
+Una nueva copia descargada del remoto conserva los 14 commits y pasa la revisión
+de los 164 blobs sin detectar las identidades conocidas ni los formatos de
+credenciales privadas contemplados. `main` conserva su commit y la referencia
+actual del PR #1 ya apunta a la historia limpia. Las copias de seguridad contienen
+el historial original y deben permanecer locales, fuera del repositorio público.
 
-Después del reemplazo, revisar el PR #1 y solicitar a GitHub Support que evalúe
-la eliminación de las referencias y vistas almacenadas con datos personales.
+Queda pendiente solicitar a GitHub Support que evalúe la eliminación de las
+versiones anteriores y vistas almacenadas con datos personales.
+La URL de un commit anterior todavía respondió HTTP 200 tras el reemplazo;
+no se debe dar por completada la eliminación de las versiones antiguas.
 Un cambio de rama por sí solo no elimina copias previas, forks o cachés.
 Ver la [guía oficial para retirar datos sensibles](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository).
 
 Las personas que tengan clones anteriores deben volver a clonar desde el
 historial limpio para evitar reintroducirlo. No mezclar la historia de un clon
 antiguo mediante un merge o un push posterior.
+
+La carpeta original se conserva como respaldo con una protección local que
+bloquea sus pushes. La copia de desarrollo limpia está en
+`C:/legajo/legajo-digital-publicable`; sus cambios de preparación siguen locales.
 
 ## Cómo repetir la revisión
 

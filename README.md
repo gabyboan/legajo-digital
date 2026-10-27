@@ -68,10 +68,9 @@ docs/             prioridades y preparación para publicar
 `pnpm run check:repo` detecta archivos locales y algunos formatos de secretos en
 los archivos que Git incluiría. Es un control preventivo limitado: no examina el
 historial ni reemplaza una revisión de datos personales. Se encontraron
-importaciones de personal en commits anteriores; ver el
-[pendiente de historial](docs/PREPARACION_GITHUB.md#antes-de-hacer-público-el-repositorio).
-La [revisión de privacidad](docs/PRIVACIDAD.md) documenta la limpieza preparada
-localmente, su alcance y lo que todavía falta aplicar en GitHub.
+importaciones de personal en commits anteriores y se retiraron del historial de
+las ramas de GitHub. Ver la [revisión de privacidad](docs/PRIVACIDAD.md) para el
+alcance verificado y la gestión pendiente de versiones antiguas con GitHub Support.
 
 ## Configuracion
 

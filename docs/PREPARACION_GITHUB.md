@@ -5,13 +5,13 @@ lista separa la publicación del código de la puesta en producción del sistema
 
 ## Antes de hacer público el repositorio
 
-- [ ] Resolver los datos personales que ya están en el historial. Se encontraron
-  tres archivos versionados en `supabase/imports/`, incluido un CSV de 262 filas
-  con DNI, nombres y horas. Sus copias locales se conservan y su eliminación de
-  Git está preparada, pero eso no elimina los commits anteriores. Antes de
-  publicar, aplicar la limpieza ya preparada en una copia aislada del historial.
-  La rama afectada es `agent/ficha-persona-ampliada` y su PR #1; `main` queda
-  intacta. El remoto público todavía conserva los datos hasta autorizar ese paso.
+- [x] Retirar las tres importaciones de personal del historial de las ramas de
+  GitHub. Se aplicó el reemplazo autorizado de `agent/ficha-persona-ampliada` y se
+  verificó con una nueva descarga del remoto; la referencia actual del PR #1
+  también está limpia. `main` conserva su commit. Las copias locales de respaldo
+  contienen el historial anterior y deben permanecer fuera del repositorio público.
+- [ ] Solicitar a GitHub Support la evaluación de las versiones antiguas y vistas
+  almacenadas. La reescritura de ramas no elimina todas las copias o cachés.
 - [x] Revisar el historial disponible por secretos e identidades de las
   importaciones conocidas. No se detectaron formatos de credenciales privadas
   contemplados por las reglas. Alcance, límites y pasos restantes en
