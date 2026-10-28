@@ -11,10 +11,11 @@ import {
   type BancoInicialHoras,
 } from './components/banco-inicial-horas-form'
 import { PersonaEditForm } from './components/persona-edit-form'
+import { obtenerFichaEdicion } from '@/lib/personas/consultas'
 import {
-  FamiliaresEditForm,
-  type Familiar,
-} from './components/familiares-edit-form'
+  normalizarSituacionesRevista,
+} from '@/lib/situaciones-revista'
+import { carreraVisible } from '@/lib/carreras'
 
 type EditarPersonaPageProps = {
   params: Promise<{ dni: string }>
@@ -69,20 +70,10 @@ export default async function EditarPersonaPage({
   const [
     personaRes,
     situacionesRes,
-    situacionActualRes,
     carrerasRes,
-    carreraActualRes,
-    familiaresRes,
     sexosRes,
-    domicilioRes,
   ] = await Promise.all([
-    supabase
-      .from('personas')
-      .select(
-        'dni, legajo, apellido, nombre, email, telefono, fecha_nacimiento, horario_rotativo, cuil, reloj, indice, sexo_id, numero_contacto, estado_civil, fecha_ingreso, formacion_estudio, matricula, nivel_escolaridad, fecha_inicio_tarea_especifica, observacion'
-      )
-      .eq('dni', dniNumber)
-      .maybeSingle(),
+    obtenerFichaEdicion(supabase, dniNumber),
 
     supabase
       .from('situacion_revista')
@@ -90,65 +81,42 @@ export default async function EditarPersonaPage({
       .order('nombre', { ascending: true }),
 
     supabase
-      .from('persona_situacion_revista')
-      .select('situacion_id')
-      .eq('dni', dniNumber)
-      .order('situacion_id'),
-
-    supabase
       .from('carreras')
       .select('id, nombre')
       .order('id', { ascending: true }),
 
     supabase
-      .from('persona_carreras')
-      .select('carrera_id')
-      .eq('dni', dniNumber)
-      .limit(1),
-
-    supabase
-      .from('persona_familiares')
-      .select('id, apellido, nombre, fecha_nacimiento, dni, parentesco')
-      .eq('persona_dni', dniNumber)
-      .order('apellido')
-      .order('nombre'),
-
-    supabase
       .from('sexos')
       .select('id, nombre')
       .order('id', { ascending: true }),
-
-    supabase
-      .from('persona_domicilios')
-      .select('calle, numero, barrio, manzana, lote, monoblock, piso, departamento, referencias, otros_datos, provincia_georef_id, provincia_nombre, localidad_georef_id, localidad_nombre')
-      .eq('persona_dni', dniNumber)
-      .is('vigente_hasta', null)
-      .maybeSingle()
   ])
 
   if (personaRes.error) {
-    throw new Error(personaRes.error.message)
+    throw new Error('No se pudo cargar una versión completa de la ficha para editar. Recargá la página antes de continuar.')
   }
 
-  const persona = personaRes.data
+  const ficha = personaRes.data
+  const persona = ficha?.persona
 
-  if (!persona) {
+  if (!persona || !ficha) {
     notFound()
   }
 
-  const situaciones = situacionesRes.data ?? []
-  const carreras = carrerasRes.data ?? []
+  const situaciones = normalizarSituacionesRevista(situacionesRes.data ?? [])
+  const carreras = (carrerasRes.data ?? []).filter((carrera) =>
+    carreraVisible(carrera.nombre)
+  )
   const sexos = sexosRes.data ?? []
-  const domicilio = domicilioRes.data
+  const domicilio = ficha.domicilio
 
   const situacionActualId =
-    situacionActualRes.data && situacionActualRes.data.length > 0
-      ? String(situacionActualRes.data[0].situacion_id)
+    ficha.situaciones.length > 0
+      ? String(ficha.situaciones[0])
       : ''
 
   const carreraActualId =
-    carreraActualRes.data && carreraActualRes.data.length > 0
-      ? String(carreraActualRes.data[0].carrera_id)
+    ficha.carreras.length > 0
+      ? String(ficha.carreras[0])
       : ''
 
   const horariosActualesRes = carreraActualId
@@ -201,9 +169,6 @@ export default async function EditarPersonaPage({
           message={`Error al cargar Carreras: ${carrerasRes.error.message}`}
         />
       ) : null}
-      {familiaresRes.error ? (
-        <ErrorBanner message={`Error al cargar familiares: ${familiaresRes.error.message}`} />
-      ) : null}
       {horariosActualesRes.error && carreraActualId ? (
         <ErrorBanner
           message={`Error al cargar asistencia: ${horariosActualesRes.error.message}`}
@@ -216,6 +181,7 @@ export default async function EditarPersonaPage({
       ) : null}
 
       <PersonaEditForm
+        fichaVersion={ficha.version}
         persona={persona}
         situaciones={situaciones}
         carreras={carreras}
@@ -231,11 +197,6 @@ export default async function EditarPersonaPage({
         canEditAsistencia={canWriteFrancos}
         horariosPorDia={horariosPorDia}
         horarioRotativo={persona.horario_rotativo}
-      />
-
-      <FamiliaresEditForm
-        personaDni={persona.dni}
-        familiares={(familiaresRes.data ?? []) as Familiar[]}
       />
 
       <BancoInicialHorasForm

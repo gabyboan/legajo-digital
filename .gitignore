@@ -44,5 +44,34 @@ next-env.d.ts
 # supabase local cache
 supabase/.temp/
 
-# SQL files are local only
+# SQL files are local only, except reviewed migrations and synthetic fixtures.
 *.sql
+!supabase/migrations/20261028110057_preservar_casa_domicilio.sql
+!supabase/migrations/20261028111643_proteger_edicion_simultanea_persona.sql
+!scripts/fixtures/rpc-persona-guardar-escolaridad.sql
+!scripts/fixtures/domicilio-rpc-schema.sql
+!scripts/fixtures/domicilio-rpc-regression.sql
+!scripts/fixtures/rpc-persona-guardar-anterior.sql
+!supabase/migrations/20260901104621_add_familiar_fallecido.sql
+!supabase/migrations/20260904124155_add_persona_dni_validaciones.sql
+!supabase/migrations/20260904133603_fix_persona_dni_validacion_rpc.sql
+!supabase/migrations/20260904141531_validar_dni_guardar_cuit.sql
+!supabase/migrations/20260904143056_corregir_orden_validacion_cuit.sql
+!supabase/migrations/20260904143446_corregir_tipo_posicion_cuit.sql
+
+!supabase/migrations/20260907113237_modulo_validador_familiares.sql
+/modules/validador-dni/__pycache__/
+
+/modules/validador-familiares/__pycache__/
+
+# Local background server logs and instance lock.
+/.runtime/
+
+# Local tooling, Python caches and imports with personnel data.
+/.wrangler/
+__pycache__/
+*.py[cod]
+/.venv/
+/venv/
+/supabase/imports/*
+!/supabase/imports/.gitignore

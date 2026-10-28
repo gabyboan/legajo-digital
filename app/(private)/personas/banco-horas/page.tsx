@@ -7,38 +7,30 @@ import {
 import { updateBancoInicialHorasDesdeListado } from '../actions'
 import { formatDate, formatMinutes } from '../format'
 
-type SupabaseClient = Awaited<ReturnType<typeof createClient>>
-
 type BancoHorasPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>
 }
 
-type PersonaRow = {
+type BancoListadoRow = {
   dni: number
   apellido: string
   nombre: string
+  carrera_id: number | null
+  banco_id: number | null
+  banco_fecha: string | null
+  banco_minutos: number | null
+  banco_observacion: string | null
 }
 
-type CarreraRow = {
-  dni: number
-  carrera_id: number
-}
-
-type BancoInicialRow = {
-  id: number
-  fecha: string
-  minutos: number
-  observacion: string | null
-}
-
-type BancoRow = PersonaRow & {
-  carreraId: number | null
-  bancoInicial: BancoInicialRow | null
-  bancoError: string | null
-}
+const PAGE_SIZE = 100
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value
+}
+
+function positiveInt(value: string | undefined) {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1
 }
 
 function splitMinutes(value: number | null | undefined) {
@@ -55,135 +47,49 @@ function todayInputValue() {
   return new Date().toISOString().slice(0, 10)
 }
 
+function pageHref(q: string, page: number) {
+  const params = new URLSearchParams({ page: String(page) })
 
-async function fetchAllPersonas(supabase: SupabaseClient, q: string) {
-  const pageSize = 1000
-  const allPersonas: PersonaRow[] = []
-
-  for (let from = 0; ; from += pageSize) {
-    let query = supabase
-      .from('personas')
-      .select('dni, apellido, nombre')
-      .order('apellido', { ascending: true })
-      .order('nombre', { ascending: true })
-      .range(from, from + pageSize - 1)
-
-    if (q) {
-      if (/^\d+$/.test(q)) {
-        query = query.eq('dni', Number(q))
-      } else {
-        query = query.or(`apellido.ilike.%${q}%,nombre.ilike.%${q}%`)
-      }
-    }
-
-    const { data, error } = await query
-
-    if (error) {
-      return { data: null, error }
-    }
-
-    const personas = (data ?? []) as PersonaRow[]
-    allPersonas.push(...personas)
-
-    if (personas.length < pageSize) {
-      return { data: allPersonas, error: null }
-    }
-  }
-}
-
-async function fetchCarrerasByDni(
-  supabase: SupabaseClient,
-  dnis: number[]
-) {
-  const pageSize = 500
-  const allCarreras: CarreraRow[] = []
-
-  for (let index = 0; index < dnis.length; index += pageSize) {
-    const dniChunk = dnis.slice(index, index + pageSize)
-    const { data, error } = await supabase
-      .from('persona_carreras')
-      .select('dni, carrera_id')
-      .in('dni', dniChunk)
-
-    if (error) {
-      return { data: null, error }
-    }
-
-    allCarreras.push(...((data ?? []) as CarreraRow[]))
+  if (q) {
+    params.set('q', q)
   }
 
-  return { data: allCarreras, error: null }
+  return `/personas/banco-horas?${params.toString()}`
 }
+
 export default async function BancoHorasPage({
   searchParams,
 }: BancoHorasPageProps) {
   const supabase = await createClient()
   const params = (await searchParams) ?? {}
   const q = (firstParam(params.q) ?? '').trim()
+  const page = positiveInt(firstParam(params.page))
   const pageError = firstParam(params.error)
   const updated = firstParam(params.updated)
+  const dniSearch = /^\d+$/.test(q) ? Number(q) : null
 
-  const [canEdit, canWriteFrancos] = await Promise.all([
+  const [canEdit, canWriteFrancos, bancoRes] = await Promise.all([
     canCurrentUserEditLegajo(supabase),
     canCurrentUserWriteFrancos(supabase),
+    supabase.rpc('rpc_francos_banco_inicial_listar', {
+      p_search: dniSearch === null ? q || null : null,
+      p_dni: dniSearch,
+      p_limit: PAGE_SIZE,
+      p_offset: (page - 1) * PAGE_SIZE,
+    }),
   ])
   const canEditBanco = canEdit && canWriteFrancos
 
-  const { data: personas, error: personasError } = await fetchAllPersonas(
-    supabase,
-    q
-  )
-
-  if (personasError) {
+  if (bancoRes.error) {
     return (
       <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-6 text-red-200">
-        Error al cargar personas: {personasError.message}
+        Error al cargar el banco de horas: {bancoRes.error.message}
       </div>
     )
   }
 
-  const personasList = (personas ?? []) as PersonaRow[]
-  const dnis = personasList.map((persona) => persona.dni)
-  const carrerasRes =
-    dnis.length > 0
-      ? await fetchCarrerasByDni(supabase, dnis)
-      : { data: [], error: null }
-
-  const carreraPorDni = new Map<number, number>()
-
-  for (const carrera of (carrerasRes.data ?? []) as CarreraRow[]) {
-    if (!carreraPorDni.has(carrera.dni)) {
-      carreraPorDni.set(carrera.dni, carrera.carrera_id)
-    }
-  }
-
-  const rows: BancoRow[] = await Promise.all(
-    personasList.map(async (persona) => {
-      const carreraId = carreraPorDni.get(persona.dni) ?? null
-
-      if (!carreraId) {
-        return {
-          ...persona,
-          carreraId,
-          bancoInicial: null,
-          bancoError: null,
-        }
-      }
-
-      const bancoRes = await supabase.rpc('rpc_francos_saldo_inicial_actual', {
-        p_dni: persona.dni,
-        p_carrera_id: carreraId,
-      })
-
-      return {
-        ...persona,
-        carreraId,
-        bancoInicial:
-          ((bancoRes.data ?? [])[0] as BancoInicialRow | undefined) ?? null,
-        bancoError: bancoRes.error?.message ?? null,
-      }
-    })
-  )
+  const rows = (bancoRes.data ?? []) as BancoListadoRow[]
+  const hasNextPage = rows.length === PAGE_SIZE
 
   return (
     <section className="space-y-6">
@@ -233,12 +139,6 @@ export default async function BancoHorasPage({
         </div>
       ) : null}
 
-      {carrerasRes.error ? (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          Error al cargar carreras: {carrerasRes.error.message}
-        </div>
-      ) : null}
-
       {!canEditBanco ? (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
           No tenes permisos para cargar banco inicial de horas.
@@ -269,8 +169,8 @@ export default async function BancoHorasPage({
               </tr>
             ) : (
               rows.map((row) => {
-                const saldo = splitMinutes(row.bancoInicial?.minutos)
-                const disabled = !canEditBanco || !row.carreraId
+                const saldo = splitMinutes(row.banco_minutos)
+                const disabled = !canEditBanco || !row.carrera_id
 
                 return (
                   <tr key={row.dni} className="hover:bg-zinc-800/40">
@@ -278,14 +178,12 @@ export default async function BancoHorasPage({
                     <td className="px-4 py-3">{row.apellido}</td>
                     <td className="px-4 py-3">{row.nombre}</td>
                     <td className="px-4 py-3 text-zinc-300">
-                      {row.bancoError ? (
-                        <span className="text-red-300">Error</span>
-                      ) : row.bancoInicial ? (
+                      {row.banco_id ? (
                         <span>
-                          {formatMinutes(row.bancoInicial.minutos)} desde{' '}
-                          {formatDate(row.bancoInicial.fecha)}
+                          {formatMinutes(row.banco_minutos ?? 0)} desde{' '}
+                          {formatDate(row.banco_fecha ?? '')}
                         </span>
-                      ) : row.carreraId ? (
+                      ) : row.carrera_id ? (
                         <span className="text-zinc-500">Sin cargar</span>
                       ) : (
                         <span className="text-amber-200">Sin carrera</span>
@@ -300,13 +198,14 @@ export default async function BancoHorasPage({
                         <input
                           type="hidden"
                           name="carrera_id"
-                          value={row.carreraId ?? ''}
+                          value={row.carrera_id ?? ''}
                         />
                         <input type="hidden" name="q" value={q} />
+                        <input type="hidden" name="page" value={page} />
                         <input
                           type="date"
                           name="saldo_inicial_fecha"
-                          defaultValue={row.bancoInicial?.fecha ?? todayInputValue()}
+                          defaultValue={row.banco_fecha ?? todayInputValue()}
                           disabled={disabled}
                           required
                           className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-500 disabled:cursor-not-allowed disabled:bg-zinc-900 disabled:text-zinc-600"
@@ -325,7 +224,7 @@ export default async function BancoHorasPage({
                           name="saldo_inicial_horas"
                           min="0"
                           step="1"
-                          defaultValue={row.bancoInicial ? saldo.horas : ''}
+                          defaultValue={row.banco_id ? saldo.horas : ''}
                           placeholder="0"
                           disabled={disabled}
                           required
@@ -337,7 +236,7 @@ export default async function BancoHorasPage({
                           min="0"
                           max="59"
                           step="1"
-                          defaultValue={row.bancoInicial ? saldo.minutos : ''}
+                          defaultValue={row.banco_id ? saldo.minutos : ''}
                           placeholder="0"
                           disabled={disabled}
                           className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-500 disabled:cursor-not-allowed disabled:bg-zinc-900 disabled:text-zinc-600"
@@ -358,6 +257,30 @@ export default async function BancoHorasPage({
           </tbody>
         </table>
       </div>
+
+      <nav className="flex items-center justify-between gap-3 text-sm" aria-label="Paginación">
+        {page > 1 ? (
+          <Link
+            href={pageHref(q, page - 1)}
+            className="rounded-lg border border-zinc-700 px-4 py-2 transition hover:bg-zinc-800"
+          >
+            Anterior
+          </Link>
+        ) : (
+          <span />
+        )}
+        <span className="text-zinc-400">Página {page}</span>
+        {hasNextPage ? (
+          <Link
+            href={pageHref(q, page + 1)}
+            className="rounded-lg border border-zinc-700 px-4 py-2 transition hover:bg-zinc-800"
+          >
+            Siguiente
+          </Link>
+        ) : (
+          <span />
+        )}
+      </nav>
     </section>
   )
 }

@@ -1,5 +1,6 @@
 ﻿from __future__ import annotations
 
+import argparse
 import csv
 import pathlib
 import re
@@ -7,15 +8,14 @@ import re
 import fitz
 
 
-PDF_PATH = pathlib.Path(r"C:\Users\som\Documents\francos horas totales.pdf")
 OUTPUT_DIR = pathlib.Path("supabase/imports")
 LOAD_DATE = "2026-06-23"
 
 
-def parse_rows() -> list[dict[str, object]]:
+def parse_rows(pdf_path: pathlib.Path) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
 
-    for page_number, page in enumerate(fitz.open(PDF_PATH), start=1):
+    for page_number, page in enumerate(fitz.open(pdf_path), start=1):
         words: list[tuple[float, float, float, str]] = []
 
         for x0, y0, x1, y1, text, *_ in page.get_text("words"):
@@ -158,7 +158,7 @@ def write_outputs(rows: list[dict[str, object]]) -> tuple[pathlib.Path, pathlib.
         )
 
     sql_path.write_text(
-        f"""-- Carga inicial de banco de horas desde C:/Users/som/Documents/francos horas totales.pdf
+        f"""-- Carga inicial de banco de horas desde un PDF local (origen no incluido).
 -- Fecha solicitada: {LOAD_DATE}
 -- Convencion: celdas vacias de horas/minutos = 0. Los saldos 0 se incluyen para dejar registro explicito.
 -- Revisar primero el CSV hermano: supabase/imports/francos_horas_totales_2026-06-23.csv
@@ -216,7 +216,10 @@ commit;
 
 
 def main() -> None:
-    rows = parse_rows()
+    parser = argparse.ArgumentParser(description="Extraer saldos de un PDF local; no ejecuta SQL.")
+    parser.add_argument("source", type=pathlib.Path, help="PDF de origen")
+    args = parser.parse_args()
+    rows = parse_rows(args.source)
     csv_path, sql_path = write_outputs(rows)
 
     notes = sorted({note for row in rows for note in str(row["notes"]).split(";") if note})
