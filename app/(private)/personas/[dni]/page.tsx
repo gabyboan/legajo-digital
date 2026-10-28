@@ -3,7 +3,8 @@ import { createClient } from '@/utils/supabase/server'
 import { canCurrentUserEditLegajo } from '../permissions'
 import { AsistenciaCard, type HorarioPersona } from './components/asistencia-card'
 import { DatosPersonalesCard } from './components/datos-personales-card'
-import type { DomicilioValores } from '../components/datos-ficha-adicionales'
+import type { DomicilioValores } from '@/lib/personas/types'
+import { obtenerDomicilioVigente, obtenerFichaPersona } from '@/lib/personas/consultas'
 import { DatosLaboralesCard } from './components/datos-laborales-card'
 import { FamiliaresCard } from './components/familiares-card'
 import type { Familiar } from './editar/components/familiares-edit-form'
@@ -74,13 +75,7 @@ export default async function PersonaDetallePage({
     domicilioRes,
     canEdit,
   ] = await Promise.all([
-    supabase
-      .from('personas')
-      .select(
-        'dni, legajo, apellido, nombre, email, telefono, fecha_nacimiento, created_at, updated_at, horario_rotativo, cuil, reloj, indice, sexo_id, numero_contacto, estado_civil, fecha_ingreso, formacion_estudio, matricula, nivel_escolaridad, estado_escolaridad, fecha_inicio_tarea_especifica, observacion'
-      )
-      .eq('dni', dniNumber)
-      .maybeSingle(),
+    obtenerFichaPersona(supabase, dniNumber),
 
     supabase
       .from('persona_inactivo')
@@ -118,12 +113,7 @@ export default async function PersonaDetallePage({
       .select('id, nombre')
       .order('id', { ascending: true }),
 
-    supabase
-      .from('persona_domicilios')
-      .select('calle, numero, barrio, manzana, lote, monoblock, piso, departamento, referencias, otros_datos, provincia_georef_id, provincia_nombre, localidad_georef_id, localidad_nombre')
-      .eq('persona_dni', dniNumber)
-      .is('vigente_hasta', null)
-      .maybeSingle(),
+    obtenerDomicilioVigente(supabase, dniNumber),
 
     canCurrentUserEditLegajo(supabase),
   ])
@@ -220,11 +210,16 @@ export default async function PersonaDetallePage({
           persona={persona}
           sexo={sexoNombre}
           domicilio={domicilio}
+          domicilioError={domicilioRes.error ? 'No se pudo consultar el domicilio vigente. Recargá la ficha; este aviso no significa que el domicilio haya sido borrado.' : null}
         />
 
         <div className="space-y-6 lg:col-span-2">
           <DatosLaboralesCard
             legajo={persona.legajo}
+            reloj={persona.reloj}
+            indice={persona.indice}
+            fechaIngreso={persona.fecha_ingreso}
+            inicioTareaEspecifica={persona.fecha_inicio_tarea_especifica}
             carrera={carreraActualNombre}
             situacion={situacionActualNombre}
             inactivo={Boolean(inactivo)}

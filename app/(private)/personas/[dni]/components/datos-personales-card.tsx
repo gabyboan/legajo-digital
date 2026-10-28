@@ -1,47 +1,27 @@
 import { formatDate, formatDateTime } from '../../format'
-import type { DomicilioValores } from '../../components/datos-ficha-adicionales'
+import type { DomicilioValores, PersonaEditable } from '@/lib/personas/types'
+import { contactoDesdeRegistro } from '@/lib/personas/contacto'
 
-type Persona = {
-  dni: number
-  legajo: number | null
-  apellido: string
-  nombre: string
-  email: string | null
-  telefono: string | null
-  fecha_nacimiento: string | null
-  created_at: string | null
-  updated_at: string | null
-  cuil: number | null
-  reloj: number | null
-  indice: string | null
-  sexo_id: number | null
-  numero_contacto: number | null
-  estado_civil: string | null
-  fecha_ingreso: string | null
-  formacion_estudio: string | null
-  matricula: string | null
-  nivel_escolaridad: string | null
-  estado_escolaridad: string | null
-  fecha_inicio_tarea_especifica: string | null
-  observacion: string | null
-}
+type Persona = PersonaEditable & { created_at: string | null; updated_at: string | null }
 
 type Props = {
   persona: Persona
   sexo: string
   domicilio: Partial<DomicilioValores> | null
+  domicilioError?: string | null
 }
 
 function Field({ label, value }: { label: string; value: string | number | null | undefined }) {
   return (
     <div>
       <dt className="text-xs uppercase tracking-wide text-zinc-500">{label}</dt>
-      <dd className="mt-1 whitespace-pre-wrap text-sm text-zinc-200">{value ?? '-'}</dd>
+      <dd className="mt-1 break-words whitespace-pre-wrap text-sm text-zinc-200">{value ?? '-'}</dd>
     </div>
   )
 }
 
-export function DatosPersonalesCard({ persona, sexo, domicilio }: Props) {
+export function DatosPersonalesCard({ persona, sexo, domicilio, domicilioError }: Props) {
+  const contacto = contactoDesdeRegistro(persona)
   return (
     <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 lg:col-span-2">
       <h2 className="text-lg font-semibold">Ficha personal</h2>
@@ -50,28 +30,32 @@ export function DatosPersonalesCard({ persona, sexo, domicilio }: Props) {
         <Field label="CUIL" value={persona.cuil} />
         <Field label="Apellido" value={persona.apellido} />
         <Field label="Nombre" value={persona.nombre} />
-        <Field label="Número de reloj" value={persona.reloj} />
-        <Field label="Índice" value={persona.indice} />
         <Field label="Sexo" value={sexo} />
         <Field label="Estado civil" value={persona.estado_civil} />
-        <Field label="Email" value={persona.email} />
-        <Field label="Teléfono" value={persona.telefono} />
-        <Field label="Número de contacto" value={persona.numero_contacto} />
         <Field label="Fecha de nacimiento" value={formatDate(persona.fecha_nacimiento)} />
       </dl>
 
+      <h3 className="mt-7 text-base font-semibold">Contacto</h3>
+      <dl className="mt-4 grid gap-4 md:grid-cols-2">
+        <Field label="Email" value={persona.email} />
+        <Field label="Teléfono / celular" value={contacto.telefono || null} />
+      </dl>
+      {contacto.pendiente ? <div role="status" className="mt-4 space-y-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-100">
+        <p className="font-semibold">Contacto pendiente de revisión</p>
+        <p>También figura el número {contacto.otroNumero}. Se conservan ambos hasta confirmar cuál debe quedar desde Editar persona.</p>
+      </div> : null}
+
       <h3 className="mt-7 text-base font-semibold">Formación y antecedentes</h3>
       <dl className="mt-4 grid gap-4 md:grid-cols-2">
-        <Field label="Fecha de ingreso" value={formatDate(persona.fecha_ingreso)} />
-        <Field label="Inicio de tarea específica" value={formatDate(persona.fecha_inicio_tarea_especifica)} />
         <Field label="Formación / estudio" value={persona.formacion_estudio} />
         <Field label="Matrícula" value={persona.matricula} />
         <Field label="Nivel de escolaridad" value={persona.nivel_escolaridad} />
         <Field label="Estado de escolaridad" value={persona.estado_escolaridad} />
-        <Field label="Observaciones" value={persona.observacion} />
       </dl>
 
       <h3 className="mt-7 text-base font-semibold">Domicilio vigente</h3>
+      {domicilioError ? <p role="alert" className="mt-4 rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">{domicilioError}</p> : !domicilio ? <p className="mt-4 text-sm text-zinc-400">No hay un domicilio vigente visible para esta cuenta. Revisá el historial y los permisos antes de volver a cargarlo.</p> : null}
+      {!domicilioError && domicilio ? (
       <dl className="mt-4 grid gap-4 md:grid-cols-2">
         <Field label="Provincia" value={domicilio?.provincia_nombre} />
         <Field label="Ciudad / localidad" value={domicilio?.localidad_nombre} />
@@ -80,12 +64,18 @@ export function DatosPersonalesCard({ persona, sexo, domicilio }: Props) {
         <Field label="Barrio" value={domicilio?.barrio} />
         <Field label="Manzana" value={domicilio?.manzana} />
         <Field label="Lote" value={domicilio?.lote} />
+        <Field label="Casa" value={domicilio?.casa} />
+        <Field label="Torre" value={domicilio?.torre} />
         <Field label="Monoblock" value={domicilio?.monoblock} />
         <Field label="Piso" value={domicilio?.piso} />
         <Field label="Departamento" value={domicilio?.departamento} />
         <Field label="Puntos de referencia" value={domicilio?.referencias} />
         <Field label="Otros datos" value={domicilio?.otros_datos} />
       </dl>
+      ) : null}
+
+      <h3 className="mt-7 text-base font-semibold">Observaciones</h3>
+      <dl className="mt-4"><Field label="Observaciones del legajo" value={persona.observacion} /></dl>
 
       <dl className="mt-7 grid gap-4 md:grid-cols-2">
         <Field label="Creado" value={formatDateTime(persona.created_at)} />

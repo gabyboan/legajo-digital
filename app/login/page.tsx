@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { login } from './actions'
 import { PasswordField } from './password-field'
+import { enlaceMfa } from '@/lib/auth/mfa'
+import { estadoMfa } from '@/lib/auth/mfa-server'
 
 type LoginPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>
@@ -14,7 +16,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   } = await supabase.auth.getUser()
 
   if (user) {
-    redirect('/dashboard')
+    const status = await estadoMfa(supabase, user)
+    redirect(status === 'required' || status === 'error' ? enlaceMfa('/dashboard') : '/dashboard')
   }
 
   const params = (await searchParams) ?? {}

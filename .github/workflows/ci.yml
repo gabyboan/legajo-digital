@@ -28,7 +28,11 @@ jobs:
         run: npm install --global pnpm@11.8.0
       - name: Instalar dependencias del lockfile
         run: pnpm install --frozen-lockfile
+      - name: Auditar dependencias de producción y desarrollo
+        run: pnpm run audit:deps
       - name: Revisar repositorio, lint, tipos y pruebas
         run: pnpm run check
+      - name: Probar guardado de domicilios en PostgreSQL temporal
+        run: python -B scripts/test-domicilio-rpc.py --pg-bin "$(pg_config --bindir)"
       - name: Compilar
         run: pnpm run build

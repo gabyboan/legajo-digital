@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import { canCurrentUserEditLegajo } from './permissions'
 import { limpiarBusqueda, ordenarPersonasPorCoincidencia } from '@/lib/buscar-personas'
 import { carreraVisible } from '@/lib/carreras'
+import { enlaceMfa } from '@/lib/auth/mfa'
 
 type PersonasPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>
@@ -74,9 +75,13 @@ export default async function PersonasPage({ searchParams }: PersonasPageProps) 
     ])
 
   if (error) {
+    const requiresMfa = /autenticadora|\baal2\b|\bmfa\b/i.test(error.message)
     return (
-      <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-6 text-red-200">
-        Error al cargar personas: {error.message}
+      <div role="alert" className="space-y-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-6 text-red-200">
+        <p>{requiresMfa ? 'Verificá el código de tu aplicación autenticadora para continuar.' : 'No se pudieron cargar las personas. Volvé a intentarlo; si persiste, contactá al administrador.'}</p>
+        <Link href={requiresMfa ? enlaceMfa('/personas') : '/personas'} className="inline-flex min-h-11 items-center rounded-lg border border-red-400/50 px-4 py-2 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300">
+          {requiresMfa ? 'Verificar mi código' : 'Volver a intentar'}
+        </Link>
       </div>
     )
   }
@@ -191,8 +196,16 @@ export default async function PersonasPage({ searchParams }: PersonasPageProps) 
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
-        <table className="min-w-full divide-y divide-zinc-800 text-sm">
+      <div
+        role="region"
+        aria-label="Listado de personas"
+        tabIndex={0}
+        className="overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+      >
+        <p className="border-b border-zinc-800 px-4 py-2 text-xs text-zinc-400 lg:hidden">
+          Deslizá horizontalmente para ver todas las columnas.
+        </p>
+        <table className="w-full min-w-[640px] divide-y divide-zinc-800 text-sm">
           <thead className="bg-zinc-950/60 text-zinc-400">
             <tr>
               <th className="px-4 py-3 text-left font-medium">DNI</th>

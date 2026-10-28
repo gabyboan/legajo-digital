@@ -12,11 +12,9 @@ import {
   canCurrentUserEditLegajo,
   canCurrentUserWriteFrancos,
 } from './permissions'
-import {
-  datosFichaFromFormData,
-  datosLaboralesFromFormData,
-  datosPersonalesFromFormData,
-} from './persona-form-data'
+import { validarPersona, valoresPersona } from '@/lib/personas/formulario'
+import { guardarAltaPersona, guardarEdicionPersona } from '@/lib/personas/persistencia'
+import type { PersonaFormState } from '@/lib/personas/types'
 
 function toNullableString(value: FormDataEntryValue | null) {
   const text = String(value ?? '').trim()
@@ -193,74 +191,19 @@ export async function createPersona(formData: FormData) {
 
   await requireLegajoEdit(supabase, '/personas/nuevo')
 
-  const dniRaw = String(formData.get('dni') ?? '').trim()
-  const datosPersonales = datosPersonalesFromFormData(formData)
-  datosPersonales.apellido = capitalizarNombre(datosPersonales.apellido)
-  datosPersonales.nombre = capitalizarNombre(datosPersonales.nombre)
-  const datosLaborales = datosLaboralesFromFormData(formData)
-  const datosFicha = datosFichaFromFormData(formData)
-
-  if (!dniRaw || !datosPersonales.apellido || !datosPersonales.nombre) {
-    redirect('/personas/nuevo?error=Faltan%20campos%20obligatorios')
-  }
-
-  const dni = Number(dniRaw)
-
-  if (!Number.isInteger(dni) || dni <= 0) {
-    redirect('/personas/nuevo?error=DNI%20inv%C3%A1lido')
-  }
-
-  if (!datosLaborales.numerosValidos || !datosFicha.numerosValidos) {
-    redirect('/personas/nuevo?error=Los%20campos%20num%C3%A9ricos%20no%20son%20v%C3%A1lidos')
-  }
-
-  if (datosLaborales.carreraId === null || datosLaborales.carreraId <= 0) {
-    redirect('/personas/nuevo?error=Debe%20seleccionar%20una%20carrera')
-  }
-
-  if (datosLaborales.situacionId === null || datosLaborales.situacionId <= 0) {
-    redirect('/personas/nuevo?error=Debe%20seleccionar%20una%20situaci%C3%B3n%20de%20revista')
-  }
-
-  const carreraId = datosLaborales.carreraId
-  const horarioRotativo = formData.get('horario_rotativo') === 'on'
+  const parsed = validarPersona(formData)
+  if (!parsed.ok) redirect(`/personas/nuevo?error=${encodeURIComponent(parsed.state.message ?? 'Revisá los datos.')}`)
+  const datos = parsed.datos
+  datos.identificacion.apellido = capitalizarNombre(datos.identificacion.apellido)
+  datos.identificacion.nombre = capitalizarNombre(datos.identificacion.nombre)
+  const dni = datos.identificacion.dni
+  const carreraId = datos.laboral.carreraId
   const asistenciaItems = asistenciaItemsFromFormData(formData, '/personas/nuevo')
-
-
-  const { error: guardarError } = await supabase.rpc('rpc_persona_guardar_con_escolaridad', {
-    p_dni: dni,
-    p_apellido: datosPersonales.apellido,
-    p_nombre: datosPersonales.nombre,
-    p_fecha_nacimiento: datosPersonales.fecha_nacimiento,
-    p_email: datosPersonales.email,
-    p_telefono: datosPersonales.telefono,
-    p_legajo: datosLaborales.legajo,
-    p_carrera_id: carreraId,
-    p_situacion_id: datosLaborales.situacionId,
-    p_horario_rotativo: horarioRotativo,
-    p_cuil: datosFicha.cuil,
-    p_reloj: datosFicha.reloj,
-    p_indice: datosFicha.indice,
-    p_sexo_id: datosFicha.sexoId,
-    p_numero_contacto: datosFicha.numeroContacto,
-    p_estado_civil: datosFicha.estadoCivil,
-    p_fecha_ingreso: datosFicha.fechaIngreso,
-    p_formacion_estudio: datosFicha.formacionEstudio,
-    p_matricula: datosFicha.matricula,
-    p_nivel_escolaridad: datosFicha.nivelEscolaridad,
-    p_estado_escolaridad: datosFicha.estadoEscolaridad,
-    p_fecha_inicio_tarea_especifica: datosFicha.fechaInicioTareaEspecifica,
-    p_observacion: datosFicha.observacion,
-    p_domicilio: datosFicha.domicilio,
-  })
-
-  if (guardarError) {
-    redirect(`/personas/nuevo?error=${encodeURIComponent(guardarError.message)}`)
-  }
+  if (asistenciaItems.length > 0) await requireFrancosWrite(supabase, '/personas/nuevo')
+  const saved = await guardarAltaPersona(supabase, datos, formData.get('horario_rotativo') === 'on')
+  if (!saved.ok) redirect(`/personas/nuevo?error=${encodeURIComponent(saved.message)}`)
 
   if (asistenciaItems.length > 0) {
-    await requireFrancosWrite(supabase, '/personas/nuevo')
-
     const { error: asistenciaError } = await supabase.rpc(
       'rpc_francos_horario_guardar',
       {
@@ -286,73 +229,39 @@ export async function createPersona(formData: FormData) {
   redirect(`/personas/${dni}`)
 }
 
-export async function updatePersona(formData: FormData) {
+async function guardarFormularioPersona(formData: FormData): Promise<PersonaFormState> {
   const supabase = await createClient()
-
-  const dniRaw = String(formData.get('dni') ?? '').trim()
-  const dni = Number(dniRaw)
-
-  if (!Number.isInteger(dni) || dni <= 0) {
-    redirect('/personas?error=DNI%20inv%C3%A1lido')
+  // Every exposed Server Action checks authorization before any read or write.
+  if (!(await canCurrentUserEditLegajo(supabase))) {
+    return { status: 'error', message: 'Tu sesión no permite editar legajos. Volvé a ingresar o consultá al administrador.', values: valoresPersona(formData) }
   }
-
-  await requireLegajoEdit(supabase, `/personas/${dni}/editar`)
-
-  const datosPersonales = datosPersonalesFromFormData(formData)
-  const datosLaborales = datosLaboralesFromFormData(formData)
-  const datosFicha = datosFichaFromFormData(formData)
-
-  if (!dniRaw || !datosPersonales.apellido || !datosPersonales.nombre) {
-    redirect('/personas?error=Faltan%20campos%20obligatorios')
+  const parsed = validarPersona(formData, { validarContacto: false })
+  if (!parsed.ok) return parsed.state
+  let saved
+  try {
+    saved = await guardarEdicionPersona(supabase, parsed.datos)
+  } catch {
+    return { status: 'error', message: 'No se pudo conectar para guardar. Tus cambios se conservan en el formulario.', values: parsed.values }
   }
-
-  if (!datosLaborales.numerosValidos || !datosFicha.numerosValidos) {
-    redirect(`/personas/${dni}/editar?error=Los%20campos%20num%C3%A9ricos%20no%20son%20v%C3%A1lidos`)
+  if (!saved.ok) {
+    return { status: 'error', message: saved.message, errors: saved.errors, values: parsed.values }
   }
-
-  if (datosLaborales.carreraId === null || datosLaborales.carreraId <= 0) {
-    redirect(`/personas/${dni}/editar?error=Debe%20seleccionar%20una%20carrera`)
-  }
-
-
-  const { error: guardarError } = await supabase.rpc('rpc_persona_guardar_con_escolaridad', {
-    p_dni: dni,
-    p_apellido: datosPersonales.apellido,
-    p_nombre: datosPersonales.nombre,
-    p_fecha_nacimiento: datosPersonales.fecha_nacimiento,
-    p_email: datosPersonales.email,
-    p_telefono: datosPersonales.telefono,
-    p_legajo: datosLaborales.legajo,
-    p_carrera_id: datosLaborales.carreraId,
-    p_situacion_id: datosLaborales.situacionId,
-    p_horario_rotativo: null,
-    p_cuil: datosFicha.cuil,
-    p_reloj: datosFicha.reloj,
-    p_indice: datosFicha.indice,
-    p_sexo_id: datosFicha.sexoId,
-    p_numero_contacto: datosFicha.numeroContacto,
-    p_estado_civil: datosFicha.estadoCivil,
-    p_fecha_ingreso: datosFicha.fechaIngreso,
-    p_formacion_estudio: datosFicha.formacionEstudio,
-    p_matricula: datosFicha.matricula,
-    p_nivel_escolaridad: datosFicha.nivelEscolaridad,
-    p_estado_escolaridad: datosFicha.estadoEscolaridad,
-    p_fecha_inicio_tarea_especifica: datosFicha.fechaInicioTareaEspecifica,
-    p_observacion: datosFicha.observacion,
-    p_domicilio: datosFicha.domicilio,
-  })
-
-  if (guardarError) {
-    redirect(
-      `/personas/${dni}/editar?error=${encodeURIComponent(
-        bancoInicialErrorMessage(guardarError.message)
-      )}`
-    )
-  }
-
+  const dni = parsed.datos.identificacion.dni
   revalidatePath('/personas')
   revalidatePath(`/personas/${dni}`)
+  revalidatePath(`/personas/${dni}/editar`)
   redirect(`/personas/${dni}`)
+}
+
+export async function updatePersonaConEstado(_previousState: PersonaFormState, formData: FormData): Promise<PersonaFormState> {
+  return guardarFormularioPersona(formData)
+}
+
+export async function updatePersona(formData: FormData) {
+  const state = await guardarFormularioPersona(formData)
+  const raw = String(formData.get('dni') ?? '').trim()
+  const destination = /^\d{7,8}$/.test(raw) ? `/personas/${Number(raw)}/editar` : '/personas'
+  redirect(`${destination}?error=${encodeURIComponent(state.message ?? 'Revisá los datos.')}`)
 }
 export async function updateAsistenciaPersona(formData: FormData) {
   const supabase = await createClient()

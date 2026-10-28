@@ -39,6 +39,7 @@ export async function GET(request: Request) {
 
   const params = new URL(request.url).searchParams
   const q = (params.get('q') ?? '').trim()
+  const esBusquedaPorDni = /^\d+$/.test(q)
   const carreraId = params.get('carrera') ?? ''
   const estado = parseEstado(params.get('estado'))
 
@@ -49,7 +50,7 @@ export async function GET(request: Request) {
     .order('nombre', { ascending: true })
     .limit(2000)
 
-  if (/^\d+$/.test(q)) {
+  if (esBusquedaPorDni) {
     personasQuery = personasQuery.eq('dni', Number(q))
   }
 
@@ -75,7 +76,7 @@ export async function GET(request: Request) {
 
     return coincideCarrera && coincideEstado
   })
-  const ordenadas = q
+  const ordenadas = q && !esBusquedaPorDni
     ? ordenarPersonasPorCoincidencia(filtradas, limpiarBusqueda(q))
     : filtradas
 
