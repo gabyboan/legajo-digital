@@ -11,6 +11,11 @@ import {
   type BancoInicialHoras,
 } from './components/banco-inicial-horas-form'
 import { PersonaEditForm } from './components/persona-edit-form'
+import { obtenerFichaEdicion } from '@/lib/personas/consultas'
+import {
+  normalizarSituacionesRevista,
+} from '@/lib/situaciones-revista'
+import { carreraVisible } from '@/lib/carreras'
 
 type EditarPersonaPageProps = {
   params: Promise<{ dni: string }>
@@ -29,6 +34,14 @@ function ErrorBanner({ message }: { message: string }) {
       {message}
     </div>
   )
+}
+
+function humanizeError(message: string) {
+  if (message.includes('persona_familiares_persona_dni_familiar_dni_uidx')) {
+    return 'Ya existe un familiar cargado con ese DNI. Usá Editar sobre el registro existente.'
+  }
+
+  return message
 }
 
 export default async function EditarPersonaPage({
@@ -57,17 +70,10 @@ export default async function EditarPersonaPage({
   const [
     personaRes,
     situacionesRes,
-    situacionActualRes,
     carrerasRes,
-    carreraActualRes,
+    sexosRes,
   ] = await Promise.all([
-    supabase
-      .from('personas')
-      .select(
-        'dni, legajo, apellido, nombre, email, telefono, fecha_nacimiento, horario_rotativo'
-      )
-      .eq('dni', dniNumber)
-      .maybeSingle(),
+    obtenerFichaEdicion(supabase, dniNumber),
 
     supabase
       .from('situacion_revista')
@@ -75,44 +81,42 @@ export default async function EditarPersonaPage({
       .order('nombre', { ascending: true }),
 
     supabase
-      .from('persona_situacion_revista')
-      .select('situacion_id')
-      .eq('dni', dniNumber)
-      .limit(1),
-
-    supabase
       .from('carreras')
       .select('id, nombre')
       .order('id', { ascending: true }),
 
     supabase
-      .from('persona_carreras')
-      .select('carrera_id')
-      .eq('dni', dniNumber)
-      .limit(1),
+      .from('sexos')
+      .select('id, nombre')
+      .order('id', { ascending: true }),
   ])
 
   if (personaRes.error) {
-    throw new Error(personaRes.error.message)
+    throw new Error('No se pudo cargar una versión completa de la ficha para editar. Recargá la página antes de continuar.')
   }
 
-  const persona = personaRes.data
+  const ficha = personaRes.data
+  const persona = ficha?.persona
 
-  if (!persona) {
+  if (!persona || !ficha) {
     notFound()
   }
 
-  const situaciones = situacionesRes.data ?? []
-  const carreras = carrerasRes.data ?? []
+  const situaciones = normalizarSituacionesRevista(situacionesRes.data ?? [])
+  const carreras = (carrerasRes.data ?? []).filter((carrera) =>
+    carreraVisible(carrera.nombre)
+  )
+  const sexos = sexosRes.data ?? []
+  const domicilio = ficha.domicilio
 
   const situacionActualId =
-    situacionActualRes.data && situacionActualRes.data.length > 0
-      ? String(situacionActualRes.data[0].situacion_id)
+    ficha.situaciones.length > 0
+      ? String(ficha.situaciones[0])
       : ''
 
   const carreraActualId =
-    carreraActualRes.data && carreraActualRes.data.length > 0
-      ? String(carreraActualRes.data[0].carrera_id)
+    ficha.carreras.length > 0
+      ? String(ficha.carreras[0])
       : ''
 
   const horariosActualesRes = carreraActualId
@@ -154,7 +158,7 @@ export default async function EditarPersonaPage({
         <h1 className="mt-3 text-2xl font-bold">Editar persona</h1>
       </div>
 
-      {error ? <ErrorBanner message={error} /> : null}
+      {error ? <ErrorBanner message={humanizeError(error)} /> : null}
       {situacionesRes.error ? (
         <ErrorBanner
           message={`Error al cargar Situacion de Revista: ${situacionesRes.error.message}`}
@@ -177,9 +181,12 @@ export default async function EditarPersonaPage({
       ) : null}
 
       <PersonaEditForm
+        fichaVersion={ficha.version}
         persona={persona}
         situaciones={situaciones}
         carreras={carreras}
+        sexos={sexos}
+        domicilio={domicilio}
         situacionActualId={situacionActualId}
         carreraActualId={carreraActualId}
       />

@@ -3,6 +3,11 @@ import { createClient } from '@/utils/supabase/server'
 import { canCurrentUserEditLegajo } from '../permissions'
 import { AsistenciaCard, type HorarioPersona } from './components/asistencia-card'
 import { DatosPersonalesCard } from './components/datos-personales-card'
+import type { DomicilioValores } from '@/lib/personas/types'
+import { obtenerDomicilioVigente, obtenerFichaPersona } from '@/lib/personas/consultas'
+import { DatosLaboralesCard } from './components/datos-laborales-card'
+import { FamiliaresCard } from './components/familiares-card'
+import type { Familiar } from './editar/components/familiares-edit-form'
 import { EstadoLegajoCard } from './components/estado-legajo-card'
 import { PersonaHeader } from './components/persona-header'
 import { ProximosModulosCard } from './components/proximos-modulos-card'
@@ -62,23 +67,27 @@ export default async function PersonaDetallePage({
   const [
     personaRes,
     inactivoRes,
+    periodosInactividadRes,
     situacionActualRes,
     carreraActualRes,
+    familiaresRes,
+    sexosRes,
+    domicilioRes,
     canEdit,
   ] = await Promise.all([
-    supabase
-      .from('personas')
-      .select(
-        'dni, legajo, apellido, nombre, email, telefono, fecha_nacimiento, created_at, updated_at, horario_rotativo'
-      )
-      .eq('dni', dniNumber)
-      .maybeSingle(),
+    obtenerFichaPersona(supabase, dniNumber),
 
     supabase
       .from('persona_inactivo')
       .select('dni, causa, fecha, observaciones')
       .eq('dni', dniNumber)
       .maybeSingle(),
+
+    supabase
+      .from('persona_inactividad_periodos')
+      .select('id, causa, fecha_desde, fecha_hasta, observaciones')
+      .eq('persona_dni', dniNumber)
+      .order('fecha_desde', { ascending: false }),
 
     supabase
       .from('persona_situacion_revista')
@@ -91,6 +100,20 @@ export default async function PersonaDetallePage({
       .select('carrera_id, carreras(nombre)')
       .eq('dni', dniNumber)
       .limit(1),
+
+    supabase
+      .from('persona_familiares')
+      .select('id, apellido, nombre, fecha_nacimiento, dni, parentesco, fallecido')
+      .eq('persona_dni', dniNumber)
+      .order('apellido')
+      .order('nombre'),
+
+    supabase
+      .from('sexos')
+      .select('id, nombre')
+      .order('id', { ascending: true }),
+
+    obtenerDomicilioVigente(supabase, dniNumber),
 
     canCurrentUserEditLegajo(supabase),
   ])
@@ -105,6 +128,9 @@ export default async function PersonaDetallePage({
 
   const persona = personaRes.data
   const inactivo = inactivoRes.data
+  const periodosInactividad = periodosInactividadRes.data ?? []
+  const sexoNombre = sexosRes.data?.find((sexo) => sexo.id === persona.sexo_id)?.nombre ?? '-'
+  const domicilio = domicilioRes.data as Partial<DomicilioValores> | null
 
   const situacionActualNombre = getRelatedNombre(
     situacionActualRes.data?.[0],
@@ -155,6 +181,11 @@ export default async function PersonaDetallePage({
           message={`Error al cargar estado del legajo: ${inactivoRes.error.message}`}
         />
       ) : null}
+      {periodosInactividadRes.error ? (
+        <ErrorBanner
+          message={`Error al cargar historial de inactividad: ${periodosInactividadRes.error.message}`}
+        />
+      ) : null}
       {situacionActualRes.error ? (
         <ErrorBanner
           message={`Error al cargar situacion de revista: ${situacionActualRes.error.message}`}
@@ -170,14 +201,31 @@ export default async function PersonaDetallePage({
           message={`Error al cargar asistencia: ${horariosRes.error.message}`}
         />
       ) : null}
+      {familiaresRes.error ? (
+        <ErrorBanner message={`Error al cargar familiares: ${familiaresRes.error.message}`} />
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <DatosPersonalesCard
           persona={persona}
-          inactivo={Boolean(inactivo)}
-          carrera={carreraActualNombre}
-          situacion={situacionActualNombre}
+          sexo={sexoNombre}
+          domicilio={domicilio}
+          domicilioError={domicilioRes.error ? 'No se pudo consultar el domicilio vigente. Recargá la ficha; este aviso no significa que el domicilio haya sido borrado.' : null}
         />
+
+        <div className="space-y-6 lg:col-span-2">
+          <DatosLaboralesCard
+            legajo={persona.legajo}
+            reloj={persona.reloj}
+            indice={persona.indice}
+            fechaIngreso={persona.fecha_ingreso}
+            inicioTareaEspecifica={persona.fecha_inicio_tarea_especifica}
+            carrera={carreraActualNombre}
+            situacion={situacionActualNombre}
+            inactivo={Boolean(inactivo)}
+          />
+          <FamiliaresCard familiares={(familiaresRes.data ?? []) as Familiar[]} />
+        </div>
 
         <div className="space-y-6">
           <AsistenciaCard
@@ -190,6 +238,7 @@ export default async function PersonaDetallePage({
           <EstadoLegajoCard
             dni={persona.dni}
             inactivo={inactivo}
+            periodos={periodosInactividad}
             canEdit={canEdit}
           />
 
