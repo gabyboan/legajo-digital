@@ -38,8 +38,8 @@ credenciales privadas contemplados. `main` conserva su commit y la referencia
 actual del PR #1 ya apunta a la historia limpia. Las copias de seguridad contienen
 el historial original y deben permanecer locales, fuera del repositorio público.
 
-Queda pendiente solicitar a GitHub Support que evalúe la eliminación de las
-versiones anteriores y vistas almacenadas con datos personales.
+Se envió a GitHub Support el ticket #4914125 para evaluar la eliminación de las
+versiones anteriores y vistas almacenadas con datos personales; falta su resolución.
 La URL de un commit anterior todavía respondió HTTP 200 tras el reemplazo;
 no se debe dar por completada la eliminación de las versiones antiguas.
 Un cambio de rama por sí solo no elimina copias previas, forks o cachés.
@@ -52,6 +52,9 @@ antiguo mediante un merge o un push posterior.
 La carpeta original se conserva como respaldo con una protección local que
 bloquea sus pushes. La copia de desarrollo limpia está en
 `C:/legajo/legajo-digital-publicable`; sus cambios de preparación siguen locales.
+El inicio automático de PC-04 utiliza esta copia limpia desde el 27/10/2026.
+La configuración real se conserva en `.env.local`, excluido de Git; la carpeta
+original ya no inicia el servidor automáticamente.
 
 ## Cómo repetir la revisión
 
