@@ -7,6 +7,7 @@ import shutil
 import socket
 import subprocess
 import tempfile
+import sys
 from importlib.util import spec_from_file_location, module_from_spec
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -47,13 +48,19 @@ def main():
                                     cwd=task, env=env, stdout=output, stderr=subprocess.STDOUT,
                                     timeout=30, creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
         if expect_success and result.returncode:
+            print((task / f'{tool}.log').read_text(encoding='utf-8', errors='replace')[-6000:], file=sys.stderr)
+            if tool == 'pg_ctl' and (task / 'server.log').exists():
+                print((task / 'server.log').read_text(encoding='utf-8', errors='replace')[-6000:], file=sys.stderr)
             raise RuntimeError(f'{tool} fallo. Revisar {task / (tool + ".log")}')
         return result.returncode
 
     try:
         run('initdb', '-D', data, '-U', 'legajo_test', '-A', 'trust', '--encoding=UTF8', '--locale=C')
         initialized = True
-        run('pg_ctl', '-D', data, '-l', task / 'server.log', '-o', f'-h 127.0.0.1 -p {port}', '-w', '-t', '15', 'start')
+        # TCP local alcanza para estas pruebas. Los paquetes Linux pueden usar un
+        # directorio de sockets del sistema donde el usuario runner no tiene permisos.
+        run('pg_ctl', '-D', data, '-l', task / 'server.log', '-o',
+            f'-h 127.0.0.1 -p {port} -c unix_socket_directories=', '-w', '-t', '15', 'start')
         connection = ['-X', '-h', '127.0.0.1', '-p', str(port), '-U', 'legajo_test', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1']
         run('psql', *connection, '-f', ROOT / 'scripts/fixtures/domicilio-rpc-schema.sql',
             '-f', ROOT / 'scripts/fixtures/rpc-persona-guardar-anterior.sql')
