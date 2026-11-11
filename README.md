@@ -1,7 +1,7 @@
 # Legajo Digital
 
 Panel interno para consultar y administrar legajos de personal, datos de
-contacto, domicilios, familiares, asistencia y banco de horas.
+contacto, domicilios, familiares, asistencia, banco de horas y licencias.
 
 **En desarrollo.** El repositorio contiene el código y pruebas con datos
 sintéticos. La aplicación requiere un servidor y un proyecto Supabase configurado;
@@ -11,6 +11,7 @@ GitHub aloja el código, no los legajos ni una aplicación lista para usar.
 
 | Módulo | Alcance actual |
 | --- | --- |
+| Inicio | Elección entre Legajo Digital y Licencias, con grupos desplegables separados en el menú lateral y opción activa resaltada. |
 | Personas | Alta, búsqueda, consulta, edición y exportación XLSX. |
 | Edición de ficha | Seis pestañas: identificación, contacto, datos laborales, formación, domicilio y observaciones. |
 | Contacto | Teléfono único; los registros anteriores con dos números distintos requieren revisión explícita. |
@@ -18,6 +19,9 @@ GitHub aloja el código, no los legajos ni una aplicación lista para usar.
 | Familiares | Consulta, edición y comprobación externa de identidad por DNI. |
 | Asistencia y francos | Horarios y administración del banco inicial de horas, con permisos propios. |
 | Agenda | Calendario de feriados y días no laborables. |
+| Licencias | Búsqueda al escribir, cambio de agente sin recargar la página, acceso directo a su ficha, catálogo de Gestión y carga de licencias. |
+| Fichas de licencias | Búsqueda de agentes, historial y resumen por año, formato de ficha de papel e impresión/PDF en A4 horizontal. |
+| Últimas cargas de licencias | Autor, fecha y hora de Argentina; filtros y paginación; edición y borrado con confirmación, motivo, permisos y control de versión. |
 | Acceso | Supabase Auth y paso de código para cuentas con aplicación autenticadora configurada. |
 
 Se puede cambiar de pestaña sin perder lo escrito. **Guardar cambios** envía todas
@@ -29,6 +33,32 @@ la misma transacción de PostgreSQL.
 Situación, carreras, cargos, funciones, servicios, historial general y documentos
 tienen rutas reservadas; sus módulos propios todavía no están implementados.
 La ficha sí muestra los datos disponibles de carrera y situación.
+
+El módulo Licencias reutiliza las RPC y el catálogo de Gestión: requiere que la
+base tenga instalados `licencias_tipos_excel`, `rpc_licencias_personas`,
+`rpc_ficha_personas`, `rpc_licencias_historial`, `rpc_licencias_estudio_hasta` y
+`rpc_licencias_guardar_con_datos`.
+Los accesos se verifican con `can_licencias_read`, `can_licencias_create` y
+`can_ficha_read`; la lectura de fichas no concede permiso de carga.
+Estudio utiliza el calendario de la base y sus controles de cupo anual.
+Los imprevistos se siguen cargando desde Gestión y aparecen en el historial.
+
+La sección **Últimas cargas** requiere la migración
+[`20261111103934_licencias_ultimas_y_correcciones.sql`](supabase/migrations/20261111103934_licencias_ultimas_y_correcciones.sql).
+Reutiliza `created_by/created_at` y conserva la carga original al corregirla.
+La consulta requiere `can_licencias_read`; editar o borrar exige además
+`can_licencias_admin` (`LICENCIAS_ADM`). Una carga antigua sin autor se identifica
+como tal, sin atribuirle un usuario. La hora se presenta en Argentina.
+El borrado utiliza la anulación existente: deja de sumar días y de imprimirse,
+pero permanece en el historial de la ficha y en el filtro Borradas.
+Las correcciones realizadas desde esta sección conservan usuario, fecha,
+motivo de borrado y valores anteriores/posteriores en una tabla privada con RLS.
+La versión se verifica y la escritura se realiza en la misma transacción;
+los permisos de lectura o carga no conceden administración.
+
+Pruebas con datos ficticios: `node scripts/test-licencias.cjs`,
+`python -B scripts/test-licencias-db.py` y
+`python -B scripts/test-licencias-administracion-ui.py`.
 
 ## Requisitos
 

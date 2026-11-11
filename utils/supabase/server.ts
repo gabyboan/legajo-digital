@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { getSupabaseConfig } from './config'
+import { fetchConLimite } from '@/lib/auth/fetch'
 
 export async function createClient() {
   const cookieStore = await cookies()
@@ -8,6 +9,7 @@ export async function createClient() {
   const { url, key } = getSupabaseConfig()
 
   return createServerClient(url, key, {
+    global: { fetch: fetchConLimite },
     cookies: {
       getAll() {
         return cookieStore.getAll()

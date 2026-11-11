@@ -49,6 +49,7 @@ function client(contact = original, { readError = null, writeError = null } = {}
   const reads = [], writes = []
   return {
     reads, writes,
+    auth: { async getUser() { return { data: { user: { id: 'synthetic-user' } }, error: null } } },
     from(table) {
       reads.push(table)
       const query = { select() { return query }, eq() { return query },
@@ -57,6 +58,7 @@ function client(contact = original, { readError = null, writeError = null } = {}
       return query
     },
     async rpc(name, rawArgs) {
+      if (name === 'verificar_mfa_opcional') return { data: null, error: null }
       writes.push({ name, rawArgs, args: name === 'rpc_persona_editar_versionada' ? rawArgs.p_datos : rawArgs })
       return { data: null, error: writeError }
     },
@@ -87,7 +89,7 @@ async function main() {
   const repeatedField = form()
   repeatedField.append('telefono', 'otro 123')
   assert.equal(validarPersona(repeatedField).ok, false)
-  assert.equal(parsed(original, { dni: '05956728' }).identificacion.dni, 5956728)
+  assert.equal(parsed(original, { dni: '01234567' }).identificacion.dni, 1234567)
   assert.equal(parsed(original, { telefono: '011 5555-0100 int. 3' }).contacto.telefono, '011 5555-0100 int. 3')
 
   const legacy = { telefono: null, numero_contacto: 1155550100 }
@@ -158,6 +160,12 @@ async function main() {
   assert.equal(db.reads.length + db.writes.length, 0, 'Invalid input must never reach the database')
   await assert.rejects(makeActions(true, db).updatePersonaConEstado({ status: 'idle' }, form()), (error) => error instanceof Redirect && error.url === '/personas/12345678')
   assert.equal(db.writes.length, 1)
+  for (const failure of [{ readError: { code: 'PT401' } }, { writeError: { code: 'PT401' } }]) {
+    db = client(original, failure)
+    await assert.rejects(makeActions(true, db).updatePersonaConEstado({ status: 'idle' }, form()),
+      (error) => error instanceof Redirect && error.url === '/auth/expired?next=%2Fpersonas%2F12345678%2Feditar')
+    assert.equal(db.writes.length, failure.writeError ? 1 : 0, 'Expiry during a read or save must redirect without retrying the write')
+  }
   await testDomicilio()
   db = client()
   await assert.rejects(makeActions(true, db).createPersona(form(original, { asiste_1: 'on', hora_desde_1: '08:00', hora_hasta_1: '12:00' })), (error) => error instanceof Redirect && error.url.includes('permisos'))

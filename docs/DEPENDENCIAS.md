@@ -1,5 +1,18 @@
 # Revisión de dependencias
 
+## Publicación del 11 de noviembre de 2026
+
+La auditoría completa detectó el aviso
+[GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249)
+en la dependencia `minimatch` del analizador de TypeScript usado por ESLint.
+Se fija `minimatch` 11.0.1 mediante un override limitado a
+`@typescript-eslint/typescript-estree`; los consumidores de la API 3.x se conservan.
+La versión fijada admite las versiones de Node requeridas por el proyecto.
+El lockfile y las comprobaciones de lint, tipos, pruebas y compilación validan
+la compatibilidad. No se excluye el aviso ni se reduce el nivel de la auditoría.
+
+## Revisión anterior
+
 Actualización local del 27 de octubre de 2026 en la copia con historial limpio.
 
 ## Cambios

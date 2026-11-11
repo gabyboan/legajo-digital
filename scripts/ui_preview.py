@@ -47,6 +47,7 @@ def preview_server(name, source, port, *, extra_files=None, aliases=None):
             'baseUrl':'.', 'paths':{'@/*':[Path(os.path.relpath(ROOT,preview)).as_posix()+'/*'], **(aliases or {})},
         }}))
         shutil.copy2(ROOT / 'postcss.config.mjs', preview / 'postcss.config.mjs')
+        write(preview / 'proxy.ts', "import { NextResponse } from 'next/server'\nexport function proxy() { return NextResponse.next() }\n")
         app = preview / 'app'
         css = Path(os.path.relpath(ROOT / 'app/globals.css', app)).as_posix()
         sources = Path(os.path.relpath(ROOT / 'app', app)).as_posix()
@@ -62,7 +63,7 @@ def preview_server(name, source, port, *, extra_files=None, aliases=None):
         with (artifacts / 'preview.log').open('w',encoding='utf-8') as log:
             process = subprocess.Popen(
                 ['node', str(ROOT / 'node_modules/next/dist/bin/next'), 'dev', str(preview), '--hostname','127.0.0.1','--port',str(port)],
-                cwd=ROOT, env=dict(os.environ, NEXT_TELEMETRY_DISABLED='1'),
+                cwd=preview, env=dict(os.environ, NEXT_TELEMETRY_DISABLED='1'),
                 stdout=log, stderr=subprocess.STDOUT,
                 creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0), start_new_session=os.name!='nt',
             )

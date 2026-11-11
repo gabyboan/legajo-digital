@@ -1,5 +1,28 @@
 # Revisión de privacidad para publicación
 
+## Publicación del 11 de noviembre de 2026
+
+Se revisan el código vigente, las pruebas, las migraciones y las referencias de
+Git antes de publicar los módulos de licencias y los controles de sesión.
+La comparación local con referencias de personal detectó coincidencias en
+ejemplos de pruebas anteriores; se reemplazaron por datos ficticios sin esas
+coincidencias. Las referencias y los informes de esa comparación permanecen
+locales y excluidos de Git.
+
+La publicación contiene código, documentación y pruebas sintéticas. Excluye
+configuraciones reales, credenciales, documentos, importaciones, exportaciones,
+capturas y registros de ejecución. La autoría de los commits usa la dirección
+privada de GitHub (`noreply`). GitHub Actions vuelve a revisar formatos de
+secretos y artefactos locales, además de las dependencias y pruebas.
+
+El reemplazo de ejemplos en la versión vigente no borra las versiones
+anteriores ya publicadas. La revisión histórica conserva esas coincidencias y
+no se considera una eliminación completa del historial; tampoco resuelve el
+pedido previo a GitHub Support indicado más abajo. No se reescribe la historia
+remota como parte de esta publicación.
+
+## Revisión anterior
+
 Revisión del 27 de octubre de 2026.
 
 ## Alcance y resultado

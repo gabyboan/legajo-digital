@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react'
 import { AppNavigation } from './app-navigation'
+import { SessionGuard } from './session-guard'
 
 export function PrivateShell({ children, account }: { children: ReactNode; account: ReactNode }) {
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
+      <SessionGuard />
       <a
         href="#contenido-principal"
         className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-3 focus:text-black"

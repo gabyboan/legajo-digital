@@ -22,8 +22,8 @@ def report(dni, mode):
     if mode == "datos":
         intentos[0].update(estado="bloqueado", detalle="La fuente restringió el acceso.")
         intentos[1].update(estado="con_datos", resultados=[
-            {"nombre": "PEREZ ANA", "numero": "20059567283"},
-            {"nombre": "GOMEZ LUCIA", "numero": "27059567288"},
+            {"nombre": "PEREZ ANA", "numero": "20012345673"},
+            {"nombre": "GOMEZ LUCIA", "numero": "27012345678"},
         ])
     elif mode == "bloqueado":
         for intento in intentos:
@@ -62,15 +62,15 @@ def main():
                 consultar_button = page.get_by_role("button", name="Consultar apellido y nombre por DNI")
                 dni = page.locator("#familiar_dni_nuevo")
                 expect(consultar_button).to_be_disabled()
-                dni.fill("5956728")
+                dni.fill("1234567")
                 expect(consultar_button).to_be_enabled()
                 consultar_button.click()
-                expect(page.get_by_text("Resultados para el DNI 05.956.728")).to_be_visible()
+                expect(page.get_by_text("Resultados para el DNI 01.234.567")).to_be_visible()
                 expect(page.get_by_text("Apellido y nombre: Perez Ana")).to_be_visible()
                 expect(page.get_by_text("Apellido y nombre: Gomez Lucia")).to_be_visible()
                 expect(page.get_by_text("Hay distintos CUIT/CUIL", exact=False)).to_be_visible()
                 expect(page.get_by_text("Acceso restringido", exact=True)).to_be_visible()
-                assert state["calls"][0] == {"accion": "comprobar-nombre", "personaDni": 12345678, "dni": "5956728"}
+                assert state["calls"][0] == {"accion": "comprobar-nombre", "personaDni": 12345678, "dni": "1234567"}
                 page.locator("#familiar_apellido_nuevo").fill("Perez")
                 page.locator("#familiar_nombre_nuevo").fill("Ana")
                 expect(page.get_by_text("El apellido y nombre coinciden con lo ingresado.")).to_be_visible()

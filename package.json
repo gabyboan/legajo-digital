@@ -12,7 +12,7 @@
     "start": "next start",
     "lint": "eslint --max-warnings=0",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "node scripts/test-repository.mjs && node scripts/test-validador.cjs && node scripts/test-consulta-nombre-familiar.cjs && node scripts/test-familiar-verificacion.cjs && node scripts/test-exportacion-personas.cjs && node scripts/test-persona-formulario.cjs && node scripts/test-mfa.cjs",
+    "test": "node scripts/test-repository.mjs && node scripts/test-validador.cjs && node scripts/test-consulta-nombre-familiar.cjs && node scripts/test-familiar-verificacion.cjs && node scripts/test-exportacion-personas.cjs && node scripts/test-persona-formulario.cjs && node scripts/test-mfa.cjs && node scripts/test-licencias.cjs && node scripts/test-session.cjs",
     "check:repo": "node scripts/check-repository.mjs",
     "audit:deps": "pnpm audit --audit-level=low",
     "check": "pnpm run check:repo && pnpm run lint && pnpm run typecheck && pnpm test"

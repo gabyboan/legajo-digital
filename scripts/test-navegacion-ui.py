@@ -59,6 +59,8 @@ def main():
             'experimental': {'turbopackFileSystemCacheForDev': False},
         }))
         shutil.copy2(ROOT / 'postcss.config.mjs', PREVIEW / 'postcss.config.mjs')
+        # Keep this preview independent of the real application's Auth proxy.
+        write(PREVIEW / 'proxy.ts', "import { NextResponse } from 'next/server'\nexport function proxy() { return NextResponse.next() }\n")
         app = PREVIEW / 'app'
         css = Path(os.path.relpath(ROOT / 'app/globals.css', app)).as_posix()
         components = Path(os.path.relpath(ROOT / 'app/(private)/components', app)).as_posix()
@@ -88,7 +90,7 @@ export default function Preview() {{
         with (ARTIFACTS / 'preview.log').open('w', encoding='utf-8') as log:
             process = subprocess.Popen(
                 ['node', str(ROOT / 'node_modules/next/dist/bin/next'), 'dev', str(PREVIEW), '--hostname', '127.0.0.1', '--port', '3109'],
-                cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT,
+                cwd=PREVIEW, env=env, stdout=log, stderr=subprocess.STDOUT,
                 creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0),
                 start_new_session=os.name != 'nt',
             )
@@ -105,6 +107,8 @@ export default function Preview() {{
                     with urllib.request.urlopen(ORIGIN + '/personas', timeout=2) as response:
                         if response.status == 200:
                             break
+                except urllib.error.HTTPError as error:
+                    raise RuntimeError(f'El preview respondió {error.code}; revisar .runtime/navigation/preview.log') from error
                 except (urllib.error.URLError, TimeoutError):
                     pass
                 if time.monotonic() > deadline:
@@ -130,6 +134,22 @@ export default function Preview() {{
                     expect(nav).to_be_visible()
                     expect(nav.locator('[aria-current="page"]')).to_have_count(1)
                     expect(nav.get_by_role('link', name='Personas', exact=True)).to_have_attribute('aria-current', 'page')
+                    legajo = nav.get_by_role('button', name='Legajo Digital', exact=True)
+                    licencias = nav.get_by_role('button', name='Licencias', exact=True)
+                    expect(legajo).to_have_attribute('aria-expanded', 'true')
+                    expect(licencias).to_have_attribute('aria-expanded', 'false')
+                    expect(nav.get_by_role('link', name='Cargar licencias', exact=True)).to_be_hidden()
+                    legajo.click()
+                    expect(legajo).to_have_attribute('aria-expanded', 'false')
+                    expect(nav.get_by_role('link', name='Personas', exact=True)).to_be_hidden()
+                    licencias.click()
+                    expect(licencias).to_have_attribute('aria-expanded', 'true')
+                    expect(nav.get_by_role('link', name='Cargar licencias', exact=True)).to_be_visible()
+                    expect(nav.get_by_role('link', name='Ver fichas', exact=True)).to_be_visible()
+                    legajo.focus()
+                    page.keyboard.press('Space')
+                    expect(legajo).to_have_attribute('aria-expanded', 'true')
+                    expect(licencias).to_have_attribute('aria-expanded', 'false')
                     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
                     page.screenshot(path=str(ARTIFACTS / 'mobile-menu.png'), full_page=True)
                     nav.get_by_role('link', name='Validación de familiares', exact=True).click()
@@ -161,8 +181,34 @@ export default function Preview() {{
                     page.goto(ORIGIN + '/personas', wait_until='networkidle')
                     expect(nav.get_by_role('link', name='Personas', exact=True)).to_have_attribute('aria-current', 'page')
                     page.screenshot(path=str(ARTIFACTS / 'desktop.png'), full_page=True)
+                    licencias.click()
+                    expect(legajo).to_have_attribute('aria-expanded', 'false')
+                    expect(licencias).to_have_attribute('aria-expanded', 'true')
+                    nav.get_by_role('link', name='Ver fichas', exact=True).click()
+                    expect(page).to_have_url(ORIGIN + '/licencias/fichas')
+                    expect(nav.get_by_role('link', name='Ver fichas', exact=True)).to_have_attribute('aria-current', 'page')
+                    expect(nav.locator('[aria-current="page"]')).to_have_count(1)
+                    expect(legajo).to_have_attribute('aria-expanded', 'false')
+                    expect(licencias).to_have_attribute('aria-expanded', 'true')
+                    expect(nav.get_by_role('link', name='Personas', exact=True)).to_be_hidden()
+                    page.screenshot(path=str(ARTIFACTS / 'desktop-licencias.png'), full_page=True)
+                    nav.get_by_role('link', name='Cargar licencias', exact=True).focus()
+                    page.keyboard.press('Escape')
+                    expect(licencias).to_have_attribute('aria-expanded', 'false')
+                    expect(licencias).to_be_focused()
+                    page.keyboard.press('Enter')
+                    expect(licencias).to_have_attribute('aria-expanded', 'true')
+                    page.go_back()
+                    expect(legajo).to_have_attribute('aria-expanded', 'true')
+                    expect(licencias).to_have_attribute('aria-expanded', 'false')
+                    expect(nav.get_by_role('link', name='Personas', exact=True)).to_have_attribute('aria-current', 'page')
+                    nav.get_by_role('link', name='Inicio', exact=True).click()
+                    expect(page).to_have_url(ORIGIN + '/dashboard')
+                    expect(legajo).to_have_attribute('aria-expanded', 'false')
+                    expect(licencias).to_have_attribute('aria-expanded', 'false')
+                    expect(nav.get_by_role('link', name='Inicio', exact=True)).to_have_attribute('aria-current', 'page')
                     assert not errors, errors
-                    print('Navegación: móvil/escritorio, sección anidada activa, Escape/foco, saltar al contenido, navegación y sin desbordes entre 320 y 1280px: OK')
+                    print('Navegación: grupos desplegables de Legajo y Licencias, rutas activas, cambio de módulo, teclado, Escape/foco, móvil/escritorio y sin desbordes entre 320 y 1280px: OK')
                 finally:
                     browser.close()
     finally:

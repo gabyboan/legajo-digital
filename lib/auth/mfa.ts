@@ -2,7 +2,7 @@ export type MfaFactorOption = { id: string; nombre: string }
 export type MfaFormState = { status: 'idle' | 'error'; message?: string }
 
 export function esRutaPrivada(pathname: string) {
-  return ['/dashboard', '/personas', '/agenda'].some((path) => pathname === path || pathname.startsWith(`${path}/`))
+  return ['/dashboard', '/legajo', '/licencias', '/personas', '/agenda'].some((path) => pathname === path || pathname.startsWith(`${path}/`))
 }
 
 // Only return to a known application page, never to an external URL or auth loop.

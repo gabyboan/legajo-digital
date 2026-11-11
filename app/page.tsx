@@ -1,31 +1,23 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ModuleSelection } from './(private)/components/module-selection';
 
 export const metadata: Metadata = {
   title: "Legajo Digital",
   description:
-    "Sistema institucional para administrar legajos, asistencia e historial del personal.",
+    "Sistema institucional para administrar legajos, licencias e historial del personal.",
   alternates: {
     canonical: "/",
   },
   openGraph: {
     title: "Legajo Digital",
     description:
-      "Sistema institucional para administrar legajos, asistencia e historial del personal.",
+      "Sistema institucional para administrar legajos, licencias e historial del personal.",
     type: "website",
     locale: "es_AR",
     siteName: "Legajo Digital",
   },
 };
-
-const modules = [
-  "Legajos personales",
-  "Cargos y servicios",
-  "Situacion de revista",
-  "Asistencia y francos",
-  "Historial institucional",
-  "Documentacion digital",
-];
 
 export default function HomePage() {
   return (
@@ -49,36 +41,21 @@ export default function HomePage() {
           </Link>
         </header>
 
-        <div className="grid flex-1 items-center gap-12 py-14 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="flex flex-1 flex-col justify-center gap-10 py-14">
           <div className="max-w-3xl">
             <p className="mb-5 text-sm font-semibold tracking-[0.18em] text-[#63d6b0] uppercase">
-              Gestion institucional del personal
+              Gestión institucional del personal
             </p>
             <h1 className="text-5xl font-semibold leading-[1.02] text-balance sm:text-6xl lg:text-7xl">
-              Toda la informacion del legajo, clara y disponible.
+              Seleccioná tu módulo de trabajo.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-white/62">
-              Legajo Digital centraliza datos personales, carreras, asistencia,
-              francos e historial para trabajar con informacion confiable.
+              Accedé a Legajo Digital para administrar los datos del personal,
+              o a Licencias para cargar licencias y consultar las fichas.
             </p>
-            <Link
-              href="/login"
-              className="mt-9 inline-block rounded-md bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-[#d8fff0]"
-            >
-              Acceder al panel
-            </Link>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            {modules.map((module) => (
-              <div
-                key={module}
-                className="rounded-md border border-white/10 bg-white/[0.035] p-5 text-sm font-medium text-white/88"
-              >
-                {module}
-              </div>
-            ))}
-          </div>
+          <ModuleSelection />
         </div>
 
         <footer className="border-t border-white/10 py-5 text-sm text-white/54">

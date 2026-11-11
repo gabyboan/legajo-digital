@@ -15,6 +15,8 @@ import {
 import { validarPersona, valoresPersona } from '@/lib/personas/formulario'
 import { guardarAltaPersona, guardarEdicionPersona } from '@/lib/personas/persistencia'
 import type { PersonaFormState } from '@/lib/personas/types'
+import { exigirSesion, SesionNoDisponibleError } from '@/lib/auth/session-server'
+import { enlaceSesionVencida } from '@/lib/auth/session'
 
 function toNullableString(value: FormDataEntryValue | null) {
   const text = String(value ?? '').trim()
@@ -106,6 +108,7 @@ async function requireLegajoEdit(
   supabase: Awaited<ReturnType<typeof createClient>>,
   redirectTo: string
 ) {
+  await exigirSesion(supabase, redirectTo)
   const canEdit = await canCurrentUserEditLegajo(supabase)
 
   if (!canEdit) {
@@ -201,7 +204,10 @@ export async function createPersona(formData: FormData) {
   const asistenciaItems = asistenciaItemsFromFormData(formData, '/personas/nuevo')
   if (asistenciaItems.length > 0) await requireFrancosWrite(supabase, '/personas/nuevo')
   const saved = await guardarAltaPersona(supabase, datos, formData.get('horario_rotativo') === 'on')
-  if (!saved.ok) redirect(`/personas/nuevo?error=${encodeURIComponent(saved.message)}`)
+  if (!saved.ok) {
+    if (saved.sessionExpired) redirect(enlaceSesionVencida('/personas/nuevo'))
+    redirect(`/personas/nuevo?error=${encodeURIComponent(saved.message)}`)
+  }
 
   if (asistenciaItems.length > 0) {
     const { error: asistenciaError } = await supabase.rpc(
@@ -231,6 +237,14 @@ export async function createPersona(formData: FormData) {
 
 async function guardarFormularioPersona(formData: FormData): Promise<PersonaFormState> {
   const supabase = await createClient()
+  const dniRaw = String(formData.get('dni') ?? '')
+  const destination = /^\d{7,8}$/.test(dniRaw) ? `/personas/${Number(dniRaw)}/editar` : '/personas'
+  try {
+    await exigirSesion(supabase, destination)
+  } catch (error) {
+    if (!(error instanceof SesionNoDisponibleError)) throw error
+    return { status: 'error', message: error.message, values: valoresPersona(formData) }
+  }
   // Every exposed Server Action checks authorization before any read or write.
   if (!(await canCurrentUserEditLegajo(supabase))) {
     return { status: 'error', message: 'Tu sesión no permite editar legajos. Volvé a ingresar o consultá al administrador.', values: valoresPersona(formData) }
@@ -244,6 +258,7 @@ async function guardarFormularioPersona(formData: FormData): Promise<PersonaForm
     return { status: 'error', message: 'No se pudo conectar para guardar. Tus cambios se conservan en el formulario.', values: parsed.values }
   }
   if (!saved.ok) {
+    if (saved.sessionExpired) redirect(enlaceSesionVencida(destination))
     return { status: 'error', message: saved.message, errors: saved.errors, values: parsed.values }
   }
   const dni = parsed.datos.identificacion.dni

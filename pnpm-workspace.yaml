@@ -1,3 +1,7 @@
 allowBuilds:
   sharp: false
   unrs-resolver: true
+
+# Scoped to the lint parser; keep legacy minimatch consumers on their own API.
+overrides:
+  '@typescript-eslint/typescript-estree>minimatch': 11.0.1

@@ -76,11 +76,11 @@ async function main() {
   assert.equal(test.writes.length, 0)
   assert.equal(test.checks.length, 1)
   assert.ok(test.checks[0][1] instanceof AbortSignal)
-  for (const dni of ['05956728', '5956728']) {
+  for (const dni of ['01234567', '1234567']) {
     test = setup()
     response = await test.post({ ...draft, dni })
     assert.equal(response.status, 200)
-    assert.equal((await response.json()).dni, '05956728')
+    assert.equal((await response.json()).dni, '01234567')
     assert.equal(test.checks[0][0], dni)
     assert.equal(test.writes.length, 0)
   }

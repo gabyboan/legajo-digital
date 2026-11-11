@@ -37,6 +37,7 @@ function setup(options = {}) {
   const authenticatedUser = options.noVerifiedFactors ? { ...user, factors: [] } : user
   let level = options.verified ? 'aal2' : 'aal1'
   const client = {
+    async rpc(name) { assert.equal(name, 'verificar_mfa_opcional'); return { data: null, error: options.sessionError ?? null } },
     auth: {
       async getUser() { calls.push('user'); return { data: { user: options.anonymous ? null : authenticatedUser }, error: null } },
       async signInWithPassword() { return { data: { user: authenticatedUser }, error: null } },
@@ -79,6 +80,9 @@ async function main() {
     assert.equal(routing.destinoMfa(unsafe), '/dashboard')
   }
   assert.equal(routing.destinoMfa('/personas/12345678/editar?seccion=contacto'), '/personas/12345678/editar?seccion=contacto')
+  assert.equal(routing.destinoMfa('/licencias/fichas/12345678?anio=2026'), '/licencias/fichas/12345678?anio=2026')
+  assert.equal(routing.destinoMfa('/legajo'), '/legajo')
+  assert.equal(routing.destinoMfa('/licencias-falso'), '/dashboard')
   assert.equal(await estadoMfa(setup({ noFactor: true }).client, user), 'required', 'Fresh verified factors must override stale session metadata')
   assert.equal(await estadoMfa(setup({ noFactor: true }).client, { factors: [] }), 'none')
   const anonymous = setup({ anonymous: true })
@@ -129,6 +133,9 @@ async function main() {
   credentials.set('password', 'synthetic-password')
   await assert.rejects(setup().login(credentials), redirects('/auth/mfa?next=%2Fdashboard'))
   await assert.rejects(setup({ noFactor: true, noVerifiedFactors: true }).login(credentials), redirects('/dashboard'))
+  credentials.set('next', '/licencias/cargar')
+  await assert.rejects(setup().login(credentials), redirects('/auth/mfa?next=%2Flicencias%2Fcargar'))
+  await assert.rejects(setup({ noFactor: true, noVerifiedFactors: true }).login(credentials), redirects('/licencias/cargar'))
 
   await testProxy()
   await testSsrCookies()
@@ -140,8 +147,12 @@ async function testProxy() {
     { expected: '/auth/mfa?next=%2Fpersonas%3Fq%3Dtexto' },
     { url: '/agenda', expected: '/auth/mfa?next=%2Fagenda' },
     { options: { verified: true }, expected: null },
+    { options: { verified: true, sessionError: { code: 'PT401' } }, expected: '/auth/expired?next=%2Fpersonas%3Fq%3Dtexto' },
     { options: { assuranceError: true }, expected: '/auth/mfa?next=%2Fpersonas%3Fq%3Dtexto' },
-    { options: { anonymous: true }, expected: null },
+    { options: { anonymous: true }, expected: '/login?next=%2Fpersonas%3Fq%3Dtexto' },
+    { url: '/licencias/cargar', expected: '/auth/mfa?next=%2Flicencias%2Fcargar' },
+    { url: '/licencias/fichas/12345678?anio=2026', options: { anonymous: true }, expected: '/login?next=%2Flicencias%2Ffichas%2F12345678%3Fanio%3D2026' },
+    { url: '/legajo', expected: '/auth/mfa?next=%2Flegajo' },
     { url: '/auth/mfa', expected: null },
     { url: '/api/personas/exportar', expected: null },
     { url: '/login', expected: null },

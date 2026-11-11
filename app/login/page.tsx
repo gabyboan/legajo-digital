@@ -2,25 +2,29 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { login } from './actions'
 import { PasswordField } from './password-field'
-import { enlaceMfa } from '@/lib/auth/mfa'
+import { destinoMfa, enlaceMfa } from '@/lib/auth/mfa'
 import { estadoMfa } from '@/lib/auth/mfa-server'
+import { exigirSesionDatos } from '@/lib/auth/session-server'
 
 type LoginPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const params = (await searchParams) ?? {}
+  const destination = destinoMfa(Array.isArray(params.next) ? params.next[0] : params.next)
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (user) {
+  if (user && params.expired !== '1') {
     const status = await estadoMfa(supabase, user)
-    redirect(status === 'required' || status === 'error' ? enlaceMfa('/dashboard') : '/dashboard')
+    if (status === 'required' || status === 'error') redirect(enlaceMfa(destination))
+    await exigirSesionDatos(supabase, destination)
+    redirect(destination)
   }
 
-  const params = (await searchParams) ?? {}
   const rawError = params.error
   const error = Array.isArray(rawError) ? rawError[0] : rawError
 
@@ -34,6 +38,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </p>
         </div>
 
+        {params.expired === '1' ? <p role="status" className="mb-4 rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">Tu sesión venció. Ingresá nuevamente para continuar.</p> : null}
+
         {error ? (
           <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
             {error}
@@ -41,6 +47,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         ) : null}
 
         <form action={login} className="space-y-4">
+          <input type="hidden" name="next" value={destination} />
           <div>
             <label htmlFor="email" className="mb-2 block text-sm text-zinc-300">
               Email

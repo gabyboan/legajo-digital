@@ -4,6 +4,7 @@ import { contactoDesdeRegistro, errorTelefono, versionContacto, type ContactoReg
 import type { DatosPersona, PersonaFieldErrors } from './types'
 import { obtenerDomicilioVigente } from './consultas'
 import { tieneDomicilio, versionDomicilio } from './domicilio'
+import { esSesionVencida } from '@/lib/auth/session'
 
 type Client = Awaited<ReturnType<typeof createClient>>
 
@@ -34,14 +35,14 @@ function errorGuardado(error: { code?: string; message?: string }) {
 }
 
 export async function guardarEdicionPersona(client: Client, datos: DatosPersona): Promise<
-  { ok: true } | { ok: false; message: string; errors?: PersonaFieldErrors }
+  { ok: true } | { ok: false; message: string; errors?: PersonaFieldErrors; sessionExpired?: boolean }
 > {
   if (!datos.version || !/^[a-f0-9]{32}$/.test(datos.version)) {
     return { ok: false, message: 'No se pudo comprobar la versión de la ficha. Recargala antes de guardar. No se guardaron cambios.' }
   }
   const { data: actual, error } = await client.from('personas')
     .select('telefono, numero_contacto').eq('dni', datos.identificacion.dni).maybeSingle()
-  if (error) return { ok: false, message: 'No se pudo comprobar el contacto actual. No se guardaron cambios.' }
+  if (error) return { ok: false, sessionExpired: esSesionVencida(error), message: 'No se pudo comprobar el contacto actual. No se guardaron cambios.' }
   if (!actual) return { ok: false, message: 'La persona ya no está disponible. Volvé al listado.' }
   if (!datos.contacto.version || datos.contacto.version !== versionContacto(actual)) {
     return { ok: false, message: 'El contacto cambió desde que abriste la ficha. Volvé a cargarla antes de guardar.', errors: { telefono: 'Volvé a cargar la ficha para revisar los datos actuales.' } }
@@ -59,7 +60,7 @@ export async function guardarEdicionPersona(client: Client, datos: DatosPersona)
   let domicilioSinCambios = false
   if (datos.domicilio) {
     const vigente = await obtenerDomicilioVigente(client, datos.identificacion.dni)
-    if (vigente.error) return { ok: false, message: 'No se pudo leer el domicilio vigente. No se guardaron cambios. Recargá la ficha antes de volver a intentarlo.', errors: { calle: 'No se pudo comprobar el domicilio guardado.' } }
+    if (vigente.error) return { ok: false, sessionExpired: esSesionVencida(vigente.error), message: 'No se pudo leer el domicilio vigente. No se guardaron cambios. Recargá la ficha antes de volver a intentarlo.', errors: { calle: 'No se pudo comprobar el domicilio guardado.' } }
     if (!datos.domicilio.version || datos.domicilio.version !== versionDomicilio(vigente.data)) {
       return { ok: false, message: 'El domicilio cambió o no se pudo cargar al abrir la ficha. Recargala antes de guardar para conservar la versión actual.', errors: { calle: 'Revisá el domicilio vigente antes de guardar.' } }
     }
@@ -71,21 +72,23 @@ export async function guardarEdicionPersona(client: Client, datos: DatosPersona)
   const args = argumentosPersona(datos, destino, null)
   if (domicilioSinCambios) args.p_domicilio = null
   const result = await client.rpc('rpc_persona_editar_versionada', { p_datos: args, p_version: datos.version })
-  if (result.error) return { ok: false, message: errorGuardado(result.error) }
+  if (result.error) return { ok: false, sessionExpired: esSesionVencida(result.error), message: errorGuardado(result.error) }
   if (datos.domicilio) {
     const guardado = await obtenerDomicilioVigente(client, datos.identificacion.dni)
     if (guardado.error || versionDomicilio(guardado.data) !== versionDomicilio(datos.domicilio.valores)) {
-      return { ok: false, message: 'La ficha se guardó, pero no se pudo confirmar el domicilio actualizado. Conservamos lo escrito en el formulario para que puedas revisarlo.', errors: { calle: 'No se confirmó el domicilio después de guardar. Revisá el registro antes de volver a enviarlo.' } }
+      return { ok: false, sessionExpired: esSesionVencida(guardado.error), message: 'La ficha se guardó, pero no se pudo confirmar el domicilio actualizado. Conservamos lo escrito en el formulario para que puedas revisarlo.', errors: { calle: 'No se confirmó el domicilio después de guardar. Revisá el registro antes de volver a enviarlo.' } }
     }
   }
   return { ok: true }
 }
 
-export async function guardarAltaPersona(client: Client, datos: DatosPersona, horarioRotativo: boolean) {
+export async function guardarAltaPersona(client: Client, datos: DatosPersona, horarioRotativo: boolean): Promise<
+  { ok: true } | { ok: false; message: string; sessionExpired?: boolean }
+> {
   const telefonoError = errorTelefono(datos.contacto.telefono)
   if (telefonoError) return { ok: false as const, message: telefonoError }
   const result = await client.rpc('rpc_persona_guardar_con_escolaridad', argumentosPersona(datos, {
     telefono: datos.contacto.telefono, numero_contacto: null,
   }, horarioRotativo))
-  return result.error ? { ok: false as const, message: errorGuardado(result.error) } : { ok: true as const }
+  return result.error ? { ok: false, sessionExpired: esSesionVencida(result.error), message: errorGuardado(result.error) } : { ok: true }
 }

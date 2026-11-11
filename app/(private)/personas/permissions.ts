@@ -1,4 +1,5 @@
 import type { createClient } from '@/utils/supabase/server'
+import { redirigirSiSesionVencida } from '@/lib/auth/session-server'
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>
 
@@ -23,6 +24,7 @@ async function currentUserHasAnyRole(
     .maybeSingle()
 
   if (usuarioError) {
+    redirigirSiSesionVencida(usuarioError, '/personas')
     return false
   }
 
@@ -37,6 +39,7 @@ async function currentUserHasAnyRole(
     : await roleQuery.eq('usuario_id', user.id)
 
   if (rolesError) {
+    redirigirSiSesionVencida(rolesError, '/personas')
     return false
   }
 
@@ -55,6 +58,7 @@ export async function canCurrentUserWriteFrancos(supabase: SupabaseClient) {
   const { data, error } = await supabase.rpc('can_francos_write')
 
   if (error) {
+    redirigirSiSesionVencida(error, '/personas')
     return false
   }
 

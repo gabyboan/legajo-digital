@@ -59,9 +59,9 @@ assert.match(result.intentos[1].detalle, /descartaron/)
 raw.intentos[1].resultados = [dato('AJENA', '87654321')]
 assert.equal(parse(raw).intentos[1].estado, 'error')
 assert.equal(parse(informe()).intentos.every((i) => i.estado === 'sin_resultados'), true)
-raw = informe('05956728')
+raw = informe('01234567')
 raw.intentos[1].estado = 'con_datos'
-raw.intentos[1].resultados = [dato('CERO INICIAL', '05956728')]
+raw.intentos[1].resultados = [dato('CERO INICIAL', '01234567')]
 assert.equal(parse(raw).intentos[1].resultados[0].nombre, 'CERO INICIAL')
 assert.throws(() => parse(raw, '12345678'), ConsultaNombreFamiliarError)
 assert.throws(() => interpretarConsultaFamiliar('not JSON', '12345678'), ConsultaNombreFamiliarError)
@@ -89,15 +89,15 @@ async function procesos() {
       },
     },
   })
-  const pending = mocked.consultarNombreFamiliar('5956728')
-  assert.deepEqual(spawns[0].args, ['scraper.py', '05956728', '--fuente', 'todas', '--formato', 'json', '--navegador', 'firefox', '--timeout', '15'])
+  const pending = mocked.consultarNombreFamiliar('1234567')
+  assert.deepEqual(spawns[0].args, ['scraper.py', '01234567', '--fuente', 'todas', '--formato', 'json', '--navegador', 'firefox', '--timeout', '15'])
   assert.equal(spawns[0].options.shell, false)
   assert.equal(spawns[0].options.windowsHide, true)
   await assert.rejects(mocked.consultarNombreFamiliar('12345678'), /en curso/)
-  actual.stdout.write(JSON.stringify(informe('05956728')))
+  actual.stdout.write(JSON.stringify(informe('01234567')))
   actual.exitCode = 0
   actual.emit('close', 0)
-  assert.equal((await pending).dni, '05956728')
+  assert.equal((await pending).dni, '01234567')
   const allFailed = mocked.consultarNombreFamiliar('12345678')
   const blocked = informe()
   blocked.intentos.forEach((i) => { i.estado = 'bloqueado' })
