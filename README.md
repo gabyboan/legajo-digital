@@ -22,6 +22,7 @@ GitHub aloja el código, no los legajos ni una aplicación lista para usar.
 | Licencias | Búsqueda al escribir, cambio de agente sin recargar la página, acceso directo a su ficha, catálogo de Gestión y carga de licencias. |
 | Fichas de licencias | Búsqueda de agentes, historial y resumen por año, formato de ficha de papel e impresión/PDF en A4 horizontal. |
 | Últimas cargas de licencias | Autor, fecha y hora de Argentina; filtros y paginación; edición y borrado con confirmación, motivo, permisos y control de versión. |
+| Control de novedades | Francos tomados, Horas, partes médicos, licencias e imprevistos; confirmación administrativa, cruces y avisos de feriados con permiso específico. |
 | Acceso | Supabase Auth y paso de código para cuentas con aplicación autenticadora configurada. |
 
 Se puede cambiar de pestaña sin perder lo escrito. **Guardar cambios** envía todas
@@ -206,12 +207,11 @@ docs/            decisiones, comprobaciones y pendientes
 
 ## Datos y pendientes
 
-La próxima implementación de [Control de novedades](docs/CONTROL_NOVEDADES.md)
-quedará en **Legajo Digital**, dentro de Licencias: confirmación de francos
-tomados, visualización de Horas y advertencias de feriados. Las recargas ya
-verificadas se distinguen de los usos pendientes de corroborar. La propuesta
-documenta también la separación entre parte médico, devolución y licencia;
-todavía no agrega esa pantalla ni modifica los permisos existentes.
+[Control de novedades](docs/CONTROL_NOVEDADES.md) está en **Legajo Digital →
+Licencias**. Requiere la migración `20261113105527_control_novedades.sql` y
+asignación explícita de permisos. Confirmar conserva autoría e historial sin
+descontar nuevamente el banco ni crear licencias. Las recargas verificadas se
+consultan por separado; parte médico, devolución y licencia siguen diferenciados.
 
 `.env.local`, `.runtime/`, importaciones, exportaciones y respaldos con datos reales
 quedan fuera de Git. `pnpm run check:repo` comprueba archivos y algunos formatos

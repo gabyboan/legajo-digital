@@ -47,6 +47,8 @@ supabase/.temp/
 # SQL files are local only, except reviewed migrations and synthetic fixtures.
 *.sql
 !supabase/migrations/20261111103934_licencias_ultimas_y_correcciones.sql
+!supabase/migrations/20261113105527_control_novedades.sql
+!scripts/fixtures/control-novedades.sql
 !scripts/fixtures/licencias-administracion.sql
 !supabase/migrations/20261028110057_preservar_casa_domicilio.sql
 !supabase/migrations/20261028111643_proteger_edicion_simultanea_persona.sql

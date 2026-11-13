@@ -40,3 +40,5 @@ jobs:
         run: python -B scripts/test-licencias-db.py --pg-bin "$(pg_config --bindir)"
       - name: Compilar
         run: pnpm run build
+      - name: Probar control de novedades en PostgreSQL temporal
+        run: python -B scripts/test-novedades-db.py --pg-bin "$(pg_config --bindir)"

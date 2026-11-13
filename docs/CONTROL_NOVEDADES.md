@@ -1,8 +1,8 @@
 # Control de novedades en Legajo Digital
 
-Definición del 13 de noviembre de 2026 para la próxima implementación.
-Este documento fija el circuito acordado; todavía no agrega la pantalla,
-las confirmaciones ni nuevos permisos al sistema en funcionamiento.
+Implementación del 13 de noviembre de 2026. La pantalla está en
+`/licencias/control-novedades`, con listado, detalle, confirmación e historial.
+La base requiere la migración complementaria indicada al final del documento.
 
 ## Ubicación y finalidad
 
@@ -69,7 +69,9 @@ Los avisos de feriados utilizan la tabla `feriados` que administra Agenda:
   pudo realizarse; una consulta fallida no equivale a un período sin feriados.
 
 El documento no incorpora fechas de feriados nuevas ni modifica sus reglas.
-La cobertura del calendario debe comprobarse al implementar el aviso.
+La pantalla advierte que la ausencia de feriados registrados no acredita que
+el calendario del año esté completo. Un cambio del calendario del período
+invalida el control anterior y exige una nueva revisión.
 
 ## Relación con Médicos y Licencias
 
@@ -89,7 +91,7 @@ su definición operativa antes de automatizar esa parte del circuito.
 El responsable de control utiliza su propia cuenta, con permiso específico para
 consultar y confirmar. La configuración de las cuentas responsables se mantiene
 fuera de la lógica y de los documentos públicos: no se comprueban nombres escritos
-en el código ni se conceden permisos nuevos por este documento.
+en el código. La migración crea los roles, sin asignarlos a ninguna cuenta.
 La facultad de confirmar no concede editar, borrar ni registrar controles médicos.
 No se permite confirmar una carga propia.
 
@@ -111,3 +113,35 @@ información médica por el solo permiso de confirmar novedades.
 6. Una corrección o anulación del origen impide reutilizar una confirmación anterior.
 7. Una cuenta sin permiso, una carga propia y una versión desactualizada no se confirman.
 8. Los partes, sus devoluciones y las licencias vinculadas tienen estados diferenciados.
+
+## Instalación y verificación
+
+1. Hacer y comprobar un respaldo; ensayar la migración sobre una restauración
+   aislada antes de modificar la base compartida con Gestión.
+2. Aplicar `supabase/migrations/20261113105527_control_novedades.sql` preservando
+   el historial de migraciones del proyecto existente.
+3. Asignar `LICENCIAS_LECTURA` y `NOVEDADES_CONFIRMAR` a la cuenta responsable.
+   Para consulta sin confirmación, usar `LICENCIAS_LECTURA` y `NOVEDADES_LECTURA`.
+   No se conceden permisos de edición ni control médico por estas asignaciones.
+4. Publicar el código y verificar la entrada de Licencias con una sesión autorizada.
+
+La consulta abarca novedades desde 2026, con períodos de hasta 366 días y páginas
+de 25 registros. El detalle muestra hasta 50 coincidencias y 50 controles recientes;
+avisa si existen más coincidencias. El historial completo permanece en la tabla
+privada `novedades_controles`, sin acceso directo desde el cliente.
+
+Los controles guardan versión del origen, calendario y licencia vinculada, fecha
+del servidor y un identificador de operación. Un reintento idéntico no duplica el
+control; dos revisores sobre la misma versión no se sobrescriben. La asociación
+de una licencia a un parte es explícita y comprueba persona, período y versión.
+No automatiza el traslado del parte al catálogo de licencias.
+
+Verificaciones con datos ficticios:
+
+- `pnpm run check` y `pnpm run build`.
+- `python -B scripts/test-novedades-db.py`: migración real en PostgreSQL temporal,
+  permisos, autoría, calendario, versiones, vinculación y escrituras concurrentes.
+- `python -B scripts/test-novedades-ui.py`: pantalla y acción de servidor reales
+  con RPC sintéticas; navegación, confirmación, recargas, consulta y ancho móvil.
+
+Estas pruebas no confirman novedades reales ni modifican datos del personal.
