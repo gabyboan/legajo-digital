@@ -39,6 +39,7 @@ const modules: NavigationModule[] = [
       { href: '/licencias', label: 'Inicio de Licencias' },
       { href: '/licencias/cargar', label: 'Cargar licencias' },
       { href: '/licencias/ultimas', label: 'Últimas cargas' },
+      { href: '/licencias/control-novedades', label: 'Control de novedades' },
       { href: '/licencias/fichas', label: 'Ver fichas' },
     ],
   },

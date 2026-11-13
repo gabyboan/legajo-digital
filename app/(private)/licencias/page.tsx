@@ -1,9 +1,11 @@
 import Link from 'next/link'
 import { permisosLicencias, sesionLicencias } from '@/lib/licencias/server'
+import { permisosNovedades } from '@/lib/novedades/server'
 
 export default async function LicenciasPage() {
   const supabase = await sesionLicencias('/licencias')
   const permisos = await permisosLicencias(supabase)
+  const novedades = await permisosNovedades(supabase)
   return (
     <section className="space-y-6">
       <div>
@@ -16,6 +18,7 @@ export default async function LicenciasPage() {
         {[
           { href: '/licencias/cargar', title: 'Cargar licencias', description: 'Seleccioná un agente y registrá el tipo de licencia, las fechas y las observaciones.', enabled: permisos.leer && permisos.cargar, permission: 'Requiere permiso de carga de licencias.' },
           { href: '/licencias/ultimas', title: 'Últimas cargas', description: 'Revisá quién cargó cada licencia, su fecha y hora. Corregí o borrá una carga equivocada con permiso de administración.', enabled: permisos.leer, permission: 'Requiere permiso de lectura de licencias.' },
+          { href: '/licencias/control-novedades', title: 'Control de novedades', description: 'Corroborá francos tomados, revisá Horas y partes médicos, y consultá avisos de feriados y coincidencias.', enabled: novedades.leer, permission: novedades.error ? 'Requiere actualizar el módulo o comprobar la conexión.' : 'Requiere permiso de consulta o confirmación de novedades.' },
           { href: '/licencias/fichas', title: 'Ver fichas', description: 'Buscá por apellido, nombre, DNI o legajo y consultá los datos y el historial anual de licencias.', enabled: permisos.ficha, permission: 'Requiere permiso de lectura de fichas.' },
         ].map(({ href, title, description, enabled, permission }) => (
           <div key={href} className="flex flex-col rounded-2xl border border-zinc-800 bg-zinc-900 p-6 sm:p-8">

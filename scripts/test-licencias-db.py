@@ -10,7 +10,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def main():
+def main(fixture='licencias-administracion.sql', after_contracts=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--pg-bin', type=Path, help='Directorio de binarios de PostgreSQL para la prueba temporal')
     args = parser.parse_args()
@@ -43,9 +43,11 @@ def main():
         run('initdb', '-D', data, '-U', 'licencias_test', '-A', 'trust', '--encoding=UTF8', '--locale=C')
         run('pg_ctl', '-D', data, '-l', task / 'server.log', '-o', f'-h 127.0.0.1 -p {port} -c unix_socket_directories=', '-w', '-t', '15', 'start')
         started = True
-        run('psql', '-X', '-h', '127.0.0.1', '-p', port, '-U', 'licencias_test', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-f', ROOT / 'scripts/fixtures/licencias-administracion.sql')
+        run('psql', '-X', '-h', '127.0.0.1', '-p', port, '-U', 'licencias_test', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-f', ROOT / 'scripts/fixtures' / fixture)
+        if after_contracts is not None:
+            after_contracts(pg_bin, suffix, env, port, task)
         finished = True
-        print('Licencias SQL: migración real, permisos, sesión, autores, fechas, paginación, edición, versiones y borrado con historial: OK')
+        print(f'{fixture}: contratos SQL y migración real en PostgreSQL temporal: OK')
     finally:
         if started:
             run('pg_ctl', '-D', data, '-w', '-t', '15', '-m', 'fast', 'stop')
