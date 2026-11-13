@@ -206,6 +206,13 @@ docs/            decisiones, comprobaciones y pendientes
 
 ## Datos y pendientes
 
+La próxima implementación de [Control de novedades](docs/CONTROL_NOVEDADES.md)
+quedará en **Legajo Digital**, dentro de Licencias: confirmación de francos
+tomados, visualización de Horas y advertencias de feriados. Las recargas ya
+verificadas se distinguen de los usos pendientes de corroborar. La propuesta
+documenta también la separación entre parte médico, devolución y licencia;
+todavía no agrega esa pantalla ni modifica los permisos existentes.
+
 `.env.local`, `.runtime/`, importaciones, exportaciones y respaldos con datos reales
 quedan fuera de Git. `pnpm run check:repo` comprueba archivos y algunos formatos
 de secretos; el análisis adicional del historial está en la
