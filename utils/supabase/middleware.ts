@@ -53,5 +53,7 @@ export async function updateSession(request: NextRequest) {
       return redirectResponse
     }
   }
+  // Also protect successful responses and responses that refresh Auth cookies.
+  response.headers.set('Cache-Control', 'private, no-store')
   return response
 }

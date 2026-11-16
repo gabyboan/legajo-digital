@@ -1,15 +1,16 @@
 import 'server-only'
+import { cache } from 'react'
 import type { createClient } from '@/utils/supabase/server'
 import { redirigirSiSesionVencida } from '@/lib/auth/session-server'
 import type { Novedad } from './domain'
 
 type Client = Awaited<ReturnType<typeof createClient>>
 export const controlPath = '/licencias/control-novedades'
-export async function permisosNovedades(client: Client) {
+export const permisosNovedades = cache(async (client: Client) => {
   const [read, confirm] = await Promise.all([client.rpc('can_novedades_read'), client.rpc('can_novedades_confirm')])
   for (const r of [read, confirm]) redirigirSiSesionVencida(r.error, controlPath)
   return { leer: !read.error && read.data === true, confirmar: !confirm.error && confirm.data === true, error: Boolean(read.error || confirm.error) }
-}
+})
 export async function detalleNovedad(client: Client, origen: string, id: number) {
   const { data, error } = await client.rpc('rpc_novedades_detalle', { p_origen: origen, p_id: id })
   redirigirSiSesionVencida(error, controlPath)

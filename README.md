@@ -213,6 +213,25 @@ Antes de actualizar una instalación en funcionamiento, desactivar el inicio aut
 esperar que se libere el puerto 3000, actualizar el código, ejecutar `pnpm run build`
 y volver a activar el inicio automático. `pnpm run dev` queda reservado al desarrollo.
 
+## Caché y recuperación
+
+El cliente de Supabase y las verificaciones de usuario, MFA, sesión y permisos usan
+`React.cache` para compartir lecturas entre Server Components de una misma solicitud.
+No se conservan entre usuarios ni entre solicitudes. Las acciones vuelven a autorizar
+cada escritura; las llamadas privadas a Supabase y las respuestas del panel usan
+`no-store`. No agregar `unstable_cache`, `use cache` ni almacenamiento del navegador
+a estas verificaciones o a datos de personal.
+
+El índice normalizado de Personas se memoriza en el componente y se reconstruye
+cuando cambian las personas recibidas del servidor. Las búsquedas de licencias tienen
+cancelación, límite de tiempo y validación de JSON. Sus resultados quedan en memoria
+del componente, sin caché persistente. Al guardar, editar o borrar una licencia se
+invalida el árbol de `/licencias`; al editar personas se invalidan sus vistas relacionadas.
+
+Las páginas privadas muestran un estado de carga y un error recuperable. El botón
+de recuperación vuelve a consultar la vista; nunca reenvía una escritura. Verificar
+estos contratos con `python -B scripts/test-server-cache.py` y las pruebas de interfaz.
+
 ## Organización
 
 ```text

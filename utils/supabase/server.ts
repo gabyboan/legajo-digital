@@ -1,9 +1,11 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { cache } from 'react'
 import { getSupabaseConfig } from './config'
 import { fetchConLimite } from '@/lib/auth/fetch'
 
-export async function createClient() {
+// React owns this cache: one client per render request, never a process singleton.
+export const createClient = cache(async () => {
   const cookieStore = await cookies()
 
   const { url, key } = getSupabaseConfig()
@@ -23,4 +25,4 @@ export async function createClient() {
       },
     },
   })
-}
+})

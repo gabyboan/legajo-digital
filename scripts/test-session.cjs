@@ -94,6 +94,13 @@ async function main() {
     assert.equal(result.status, 'error', 'A temporary failure must settle the form rather than leave it pending')
     assert.match(result.message, /comprobar la sesión/)
     assert.deepEqual(test.calls, ['auth', 'verificar_mfa_opcional'])
+    test = setup({ user: null, authError: { status: 503, name: 'AuthRetryableFetchError' } })
+    const offlineSave = action === 'personas'
+      ? load('app/(private)/personas/actions.ts', test.overrides).updatePersonaConEstado
+      : load('app/(private)/licencias/cargar/actions.ts', test.overrides).guardarLicencia
+    const offline = await offlineSave({ status: 'idle' }, data)
+    assert.equal(offline.status, 'error', 'Un fallo de Auth debe permitir reintentar, sin confundirlo con una sesión vencida')
+    assert.deepEqual(test.calls, ['auth'], 'No consultar ni guardar datos si no se pudo verificar Auth')
   }
 
   for (const signOutThrows of [false, true]) {
@@ -157,6 +164,7 @@ async function testNetworkDeadline() {
     }
     global.fetch = (_input, init) => new Promise((_resolve, reject) => {
       attempts++
+      assert.equal(init.cache, 'no-store', 'Las llamadas privadas no deben persistir en la caché de Next')
       init.signal.addEventListener('abort', () => reject(init.signal.reason), { once: true })
     })
     await assert.rejects(fetchConLimite('https://example.invalid', { method: 'POST', body: 'synthetic' }), { name: 'TimeoutError' })

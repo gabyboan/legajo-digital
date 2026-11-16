@@ -2,8 +2,8 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
-import { filtrarPersonas, type PersonaListado } from '@/lib/personas/listado'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { filtrarIndicePersonas, indexarPersonas, type PersonaListado } from '@/lib/personas/listado'
 import { BusquedaAgentes } from '../components/busqueda-agentes'
 
 export function PersonasPanel({ personas, carreras, q, carrera, estado }: {
@@ -16,7 +16,8 @@ export function PersonasPanel({ personas, carreras, q, carrera, estado }: {
   const [limit, setLimit] = useState(100)
   const inputRef = useRef<HTMLInputElement>(null)
   const resultsRef = useRef<HTMLTableSectionElement>(null)
-  const filtradas = filtrarPersonas(personas, query, carreraId, estadoActual)
+  const indice = useMemo(() => indexarPersonas(personas), [personas])
+  const filtradas = useMemo(() => filtrarIndicePersonas(indice, query, carreraId, estadoActual), [indice, query, carreraId, estadoActual])
   const params = new URLSearchParams()
   if (query.trim()) params.set('q', query.trim())
   if (carreraId) params.set('carrera', carreraId)

@@ -146,9 +146,10 @@ async function main() {
   assert.equal(JSON.stringify(await guardarEdicionPersona(db, parsed())).includes('INTERNAL_DATA'), false)
 
   class Redirect extends Error { constructor(url) { super(url); this.url = url } }
+  const invalidated = []
   const makeActions = (allowed, database) => load('app/(private)/personas/actions.ts', {
     'next/navigation': { redirect: (url) => { throw new Redirect(url) } },
-    'next/cache': { revalidatePath() {} },
+    'next/cache': { revalidatePath(...args) { invalidated.push(args) } },
     '@/utils/supabase/server': { createClient: async () => database },
     '@/lib/persona-comprobaciones': {},
     './permissions': { canCurrentUserEditLegajo: async () => allowed, canCurrentUserWriteFrancos: async () => false },
@@ -158,8 +159,10 @@ async function main() {
   assert.equal(db.reads.length + db.writes.length, 0, 'Denied user must never read or write through the action')
   assert.equal((await makeActions(true, db).updatePersonaConEstado({ status: 'idle' }, form(original, { apellido: '' }))).status, 'error')
   assert.equal(db.reads.length + db.writes.length, 0, 'Invalid input must never reach the database')
+  assert.deepEqual(invalidated, [], 'No invalidar vistas cuando no se guardó nada')
   await assert.rejects(makeActions(true, db).updatePersonaConEstado({ status: 'idle' }, form()), (error) => error instanceof Redirect && error.url === '/personas/12345678')
   assert.equal(db.writes.length, 1)
+  assert.deepEqual(invalidated, [['/personas'], ['/personas/12345678'], ['/personas/12345678/editar'], ['/licencias', 'layout']], 'Actualizar también búsquedas y fichas de licencias al editar un legajo')
   for (const failure of [{ readError: { code: 'PT401' } }, { writeError: { code: 'PT401' } }]) {
     db = client(original, failure)
     await assert.rejects(makeActions(true, db).updatePersonaConEstado({ status: 'idle' }, form()),

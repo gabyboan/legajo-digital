@@ -1,5 +1,6 @@
 import type { createClient } from '@/utils/supabase/server'
 import { redirigirSiSesionVencida } from '@/lib/auth/session-server'
+import { usuarioVerificado } from '@/lib/auth/usuario-server'
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>
 
@@ -11,7 +12,7 @@ async function currentUserHasAnyRole(
 ) {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await usuarioVerificado(supabase)
 
   if (!user) {
     return false

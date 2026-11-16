@@ -34,6 +34,8 @@ jobs:
         run: pnpm run check
       - name: Revisar privacidad del código publicable
         run: python -B scripts/audit_privacy.py --report .runtime/privacy/audit.json
+      - name: Verificar caché SSR y aislamiento entre usuarios
+        run: python -B scripts/test-server-cache.py
       - name: Probar guardado de domicilios en PostgreSQL temporal
         run: python -B scripts/test-domicilio-rpc.py --pg-bin "$(pg_config --bindir)"
       - name: Probar permisos y correcciones de licencias en PostgreSQL temporal

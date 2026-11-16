@@ -1,4 +1,5 @@
 import 'server-only'
+import { cache } from 'react'
 import type { User } from '@supabase/supabase-js'
 import type { createClient } from '@/utils/supabase/server'
 import type { MfaFactorOption } from './mfa'
@@ -7,7 +8,7 @@ type Client = Awaited<ReturnType<typeof createClient>>
 export type MfaStatus = 'verified' | 'required' | 'none' | 'error'
 
 // Call only after getUser() has validated the session with Supabase Auth.
-export async function estadoMfa(client: Client, user: Pick<User, 'factors'>): Promise<MfaStatus> {
+export const estadoMfa = cache(async (client: Client, user: Pick<User, 'factors'>): Promise<MfaStatus> => {
   try {
     const { data, error } = await client.auth.mfa.getAuthenticatorAssuranceLevel()
     if (error || !data?.currentLevel || !data.nextLevel) return 'error'
@@ -18,7 +19,7 @@ export async function estadoMfa(client: Client, user: Pick<User, 'factors'>): Pr
   } catch {
     return 'error'
   }
-}
+})
 
 export async function factoresTotp(client: Client): Promise<{ factors: MfaFactorOption[]; error: boolean }> {
   try {
