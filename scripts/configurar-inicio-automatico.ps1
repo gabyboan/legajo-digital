@@ -26,6 +26,9 @@ $pnpmPath = (Get-Command pnpm.cmd -ErrorAction Stop).Source
 if (-not (Test-Path -LiteralPath (Join-Path $projectDir 'node_modules'))) {
     throw 'Primero instala las dependencias del proyecto.'
 }
+if (-not (Test-Path -LiteralPath (Join-Path $projectDir '.next/BUILD_ID'))) {
+    throw 'Primero ejecuta pnpm run build para preparar la version de produccion.'
+}
 $launcher = Join-Path $PSScriptRoot 'iniciar-legajo-automatico.ps1'
 $powershell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 $launchArguments = '-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File "{0}" -PnpmPath "{1}"' -f $launcher, $pnpmPath
