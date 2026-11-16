@@ -199,15 +199,19 @@ El entorno debe permitir procesos Python y navegadores de Playwright si se usan
 los validadores. La aplicación completa no es una exportación estática para
 GitHub Pages.
 
-Para el inicio automático de desarrollo en Windows:
+Para el inicio automático en Windows, compilar primero la versión de producción:
 
 ```powershell
+pnpm run build
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/configurar-inicio-automatico.ps1
 ```
 
-El script configura un acceso en Inicio, ejecuta el servidor en segundo plano y
+El script configura un acceso en Inicio, ejecuta `pnpm run start` en segundo plano y
 guarda registros locales en `.runtime/`. Para desactivarlo, agregar `-Desactivar`.
 La computadora debe permanecer encendida y con la sesión de Windows abierta.
+Antes de actualizar una instalación en funcionamiento, desactivar el inicio automático,
+esperar que se libere el puerto 3000, actualizar el código, ejecutar `pnpm run build`
+y volver a activar el inicio automático. `pnpm run dev` queda reservado al desarrollo.
 
 ## Organización
 

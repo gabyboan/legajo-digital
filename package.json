@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0 --port 3000",
     "build": "next build",
-    "start": "next start",
+    "start": "next start --hostname 0.0.0.0 --port 3000",
     "lint": "eslint --max-warnings=0",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "node scripts/test-repository.mjs && node scripts/test-validador.cjs && node scripts/test-consulta-nombre-familiar.cjs && node scripts/test-familiar-verificacion.cjs && node scripts/test-exportacion-personas.cjs && node scripts/test-persona-formulario.cjs && node scripts/test-mfa.cjs && node scripts/test-licencias.cjs && node scripts/test-session.cjs && node scripts/test-novedades.cjs",

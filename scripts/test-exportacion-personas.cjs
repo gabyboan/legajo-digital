@@ -28,7 +28,7 @@ const personas = [
   { dni: 34567890, apellido: 'Sintética', nombre: '=EJEMPLO()', persona_carreras: null },
 ]
 
-function setup({ authenticated = true, failed = false, rows = personas } = {}) {
+function setup({ authenticated = true, failed = false, inactiveFailed = false, rows = personas, inactiveRows = [{ dni: 23456789 }] } = {}) {
   const calls = []
   const client = {
     auth: { getUser: async () => ({ data: { user: authenticated ? { id: 'synthetic-user' } : null } }) },
@@ -43,7 +43,7 @@ function setup({ authenticated = true, failed = false, rows = personas } = {}) {
         then(resolve, reject) {
           const result = table === 'personas'
             ? { data: failed ? null : rows.filter((row) => dni === undefined || row.dni === dni).slice(start, end + 1), error: failed ? { message: 'INTERNAL_DETAIL' } : null }
-            : { data: [{ dni: 23456789 }].slice(start, end + 1), error: null }
+            : { data: inactiveFailed ? null : inactiveRows.slice(start, end + 1), error: inactiveFailed ? { message: 'INTERNAL_DETAIL' } : null }
           return Promise.resolve(result).then(resolve, reject)
         },
       }
@@ -76,6 +76,8 @@ async function main() {
   const failure = await setup({ failed: true }).get()
   assert.equal(failure.status, 500)
   assert.equal((await failure.text()).includes('INTERNAL_DETAIL'), false)
+  const inactiveFailure = await setup({ inactiveFailed: true }).get()
+  assert.equal(inactiveFailure.status, 500, 'No presentar como activos a los agentes cuando falla la consulta de inactivos')
 
   const sheet = await read(await setup().get())
   assert.deepEqual(XLSX.utils.sheet_to_json(sheet), [
@@ -103,7 +105,16 @@ async function main() {
     assert.equal(exported[0].Legajo, 42)
     assert.equal(exported[0].Carrera, 'Enfermería, Administración')
   }
-  assert.equal(XLSX.utils.sheet_to_json(await read(await setup({ rows: many }).get())).length, 1201)
+  const complete = setup({ rows: many })
+  assert.equal(XLSX.utils.sheet_to_json(await read(await complete.get())).length, 1201)
+  assert.equal(complete.calls.filter((table) => table === 'personas').length, 3)
+  assert.equal(complete.calls.filter((table) => table === 'persona_inactivo').length, 1, 'No volver a consultar una lista ya agotada')
+  const longInactive = setup({ inactiveRows: [
+    ...Array.from({length: 1000}, (_, index) => ({ dni: 10000000 + index })), { dni: 23456789 },
+  ] })
+  assert.deepEqual(XLSX.utils.sheet_to_json(await read(await longInactive.get('?estado=inactivos'))).map((row) => row.DNI), [23456789])
+  assert.equal(longInactive.calls.filter((table) => table === 'personas').length, 1, 'El listado corto de personas no se repite')
+  assert.equal(longInactive.calls.filter((table) => table === 'persona_inactivo').length, 3, 'Recorrer todos los inactivos aunque haya menos personas')
   console.log('Exportación XLSX: autenticación, columnas, acentos, filtros, texto sin fórmulas y listado vacío: OK')
 }
 

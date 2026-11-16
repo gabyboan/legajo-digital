@@ -36,6 +36,11 @@ try {
                 Start-Sleep -Seconds 10
                 continue
             }
+            if (-not (Test-Path -LiteralPath (Join-Path $projectDir '.next/BUILD_ID'))) {
+                Write-StartupLog 'Falta la compilacion de produccion. Ejecutar pnpm run build antes de iniciar.'
+                Start-Sleep -Seconds 10
+                continue
+            }
             $stdout = Join-Path $runtimeDir 'legajo-stdout.log'
             $stderr = Join-Path $runtimeDir 'legajo-stderr.log'
             foreach ($logFile in @($stdout, $stderr)) {
@@ -44,9 +49,9 @@ try {
                 }
             }
             $serverProcess = Start-Process -FilePath $PnpmPath -ArgumentList @(
-                'run', 'dev'
+                'run', 'start'
             ) -WorkingDirectory $projectDir -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-            Write-StartupLog "Servidor iniciado con pnpm run dev (PID $($serverProcess.Id), puerto 3000, red local)."
+            Write-StartupLog "Servidor iniciado en produccion con pnpm run start (PID $($serverProcess.Id), puerto 3000, red local)."
             while (-not $serverProcess.HasExited -and -not (Test-Path -LiteralPath $disabledFile)) {
                 Start-Sleep -Seconds 2
                 $serverProcess.Refresh()

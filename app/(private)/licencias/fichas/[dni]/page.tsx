@@ -17,11 +17,13 @@ export default async function FichaLicenciasPage({ params, searchParams }: { par
   if (permisos.error) return <ModuleMessage error>No se pudieron comprobar los permisos de fichas. Volvé a intentarlo.</ModuleMessage>
   if (!permisos.ficha) return <ModuleMessage>No tenés permiso para consultar fichas. Consultá al administrador.</ModuleMessage>
   if (!/^\d{1,8}$/.test(dni) || Number(dni) < 1) return <ModuleMessage>El DNI de la ficha es inválido.</ModuleMessage>
-  const { personas, error } = await personasLicencias(supabase, dni, true)
+  const [{ personas, error }, historial] = await Promise.all([
+    personasLicencias(supabase, dni, true),
+    historialLicencias(supabase, anio, Number(dni)),
+  ])
   if (error) return <ModuleMessage error>No se pudo consultar la ficha del agente. Volvé a intentarlo.</ModuleMessage>
   const persona = personas.find((item) => String(item.dni) === dni)
   if (!persona) return <ModuleMessage>No se encontró la ficha del agente.</ModuleMessage>
-  const historial = await historialLicencias(supabase, anio, Number(dni))
   if (historial.error) return <ModuleMessage error>No se pudo cargar el historial de licencias. Volvé a intentarlo.</ModuleMessage>
   const current = Number(fechaActual().slice(0, 4))
   return (
