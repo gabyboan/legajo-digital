@@ -12,7 +12,7 @@ GitHub aloja el código, no los legajos ni una aplicación lista para usar.
 | Módulo | Alcance actual |
 | --- | --- |
 | Inicio | Elección entre Legajo Digital y Licencias, con grupos desplegables separados en el menú lateral y opción activa resaltada. |
-| Personas | Alta, búsqueda, consulta, edición y exportación XLSX. |
+| Personas | Alta, búsqueda al escribir por nombre, DNI o legajo con el mismo buscador de Cargar licencias, filtros, consulta, edición y exportación XLSX. |
 | Edición de ficha | Seis pestañas: identificación, contacto, datos laborales, formación, domicilio y observaciones. |
 | Contacto | Teléfono único; los registros anteriores con dos números distintos requieren revisión explícita. |
 | Domicilio | Dirección estructurada, Casa/Torre, provincia/localidad e historial de cambios. |
@@ -20,7 +20,7 @@ GitHub aloja el código, no los legajos ni una aplicación lista para usar.
 | Asistencia y francos | Horarios y administración del banco inicial de horas, con permisos propios. |
 | Agenda | Calendario de feriados y días no laborables. |
 | Licencias | Búsqueda al escribir, cambio de agente sin recargar la página, acceso directo a su ficha, catálogo de Gestión y carga de licencias. |
-| Fichas de licencias | Búsqueda de agentes, historial y resumen por año, formato de ficha de papel e impresión/PDF en A4 horizontal. |
+| Fichas de licencias | Búsqueda de agentes, historial y resumen por año, edición y borrado con permisos, formato de ficha de papel e impresión/PDF en A4 horizontal. |
 | Últimas cargas de licencias | Autor, fecha y hora de Argentina; filtros y paginación; edición y borrado con confirmación, motivo, permisos y control de versión. |
 | Control de novedades | Francos tomados, Horas, partes médicos, licencias e imprevistos; confirmación administrativa, cruces y avisos de feriados con permiso específico. |
 | Acceso | Supabase Auth y paso de código para cuentas con aplicación autenticadora configurada. |
@@ -57,9 +57,28 @@ motivo de borrado y valores anteriores/posteriores en una tabla privada con RLS.
 La versión se verifica y la escritura se realiza en la misma transacción;
 los permisos de lectura o carga no conceden administración.
 
+El historial de cada ficha ofrece **Editar** y **Borrar** para las licencias
+vigentes con permiso de administración. Las acciones regresan a la ficha y al año
+consultados. Los imprevistos se gestionan en su módulo de origen.
+En **Formato ficha**, seleccioná una fila con clic o Enter para usar **Añadir fila
+arriba**, **Añadir fila abajo**, **Editar fila** o **Borrar fila**. Añadir abre el
+formulario y guarda una licencia real, con sus validaciones. Las continuaciones
+pertenecen a la misma licencia. Los controles se ocultan al imprimir.
+Requiere también
+[`20261116153646_ficha_insertar_filas.sql`](supabase/migrations/20261116153646_ficha_insertar_filas.sql):
+el orden se guarda por agente y año y se respeta al recargar, imprimir y consultar
+desde Gestión 1.0.9.10 o posterior. No modifica fechas para ordenar las filas.
+Personas, Cargar licencias y Ver fichas comparten el campo de búsqueda y la
+navegación con teclado. Personas mantiene los filtros de carrera/estado y exporta
+con el mismo criterio de búsqueda, sin recortar el padrón a las primeras filas.
+
 Pruebas con datos ficticios: `node scripts/test-licencias.cjs`,
 `python -B scripts/test-licencias-db.py` y
 `python -B scripts/test-licencias-administracion-ui.py`.
+La búsqueda se comprueba con `python -B scripts/test-personas-busqueda-ui.py`
+y `python -B scripts/test-licencias-busqueda-ui.py`.
+`python -B scripts/test-ficha-filas-db.py` comprueba permisos, orden y dos
+inserciones simultáneas en un PostgreSQL temporal.
 
 ## Requisitos
 

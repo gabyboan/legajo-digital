@@ -11,6 +11,17 @@ const client = {
   from() { return {select(){return this},eq(){return this},order(){return this},maybeSingle:async()=>({data:tipos[0],error:null}),then(resolve:any){return Promise.resolve({data:tipos,error:null}).then(resolve)}} },
   async rpc(name:string,args:any) {
     const record = root.licenciasDemo!.find((item:any)=>item.id===args.p_id) as any
+    if (name==='rpc_licencias_insertar_en_ficha') {
+      const d=args.p_datos
+      const old=root.licenciasDemo!.filter((item:any)=>item.dni===d.p_dni&&!item.anulado_at).sort((a:any,b:any)=>(a.orden_ficha_por_anio?.['2026']??9999)-(b.orden_ficha_por_anio?.['2026']??9999)||a.id-b.id) as any[]
+      const id=Math.max(...root.licenciasDemo!.map((item:any)=>item.id))+1
+      const row={...base,id,desde:d.p_desde,hasta:d.p_hasta,observacion:d.p_observacion,dias:(Date.parse(d.p_hasta)-Date.parse(d.p_desde))/86400000+1} as any
+      const index=args.p_referencia_id==null?old.length:old.findIndex((item:any)=>item.id===args.p_referencia_id)+(args.p_lado==='abajo'?1:0)
+      old.splice(index,0,row)
+      old.forEach((item:any,index:number)=>item.orden_ficha_por_anio={'2026':index+1})
+      root.licenciasDemo!.push(row)
+      return {data:id,error:null}
+    }
     if (name==='rpc_licencias_editar_versionada') {
       if(record.version!==args.p_version)return {error:{code:'40001'}}
       const d=args.p_datos
@@ -27,6 +38,8 @@ const client = {
 }
 export async function sesionLicencias(){return client}
 export async function permisosLicencias(){return {leer:true,cargar:true,ficha:true,administrar:!(await cookies()).has('test-no-admin'),error:false}}
+export async function personasLicencias(){return {personas:[{dni:12345678,apellido_nombre:'AGENTE ANA',legajo:10,carrera:'Enfermería',situacion_revista:'',funcion:'',activo:true}],error:null}}
+export async function historialLicencias(_client:any,_anio:number,dni:number){return {registros:root.licenciasDemo!.filter((item:any)=>item.dni===dni),error:null}}
 export function mensajeLicencia(error:any){return error.code==='40001'?'La licencia cambió. Volvé al listado.':'No se pudo completar la operación.'}
 export async function ultimasLicencias(_client:any,options:any={}) {
  const q=(options.q??'').toLowerCase()
@@ -42,10 +55,13 @@ export default function Preview(props:any) {{ return <PrivateShell account={{<p>
 
 
 def main():
+    expect.set_options(timeout=15000)
     listing = route('ultimas')
     extra = {'fixtures/server.ts': SERVER,
              'app/licencias/ultimas/page.tsx': listing,
              'app/licencias/ultimas/[id]/editar/page.tsx': route('ultimas/[id]/editar'),
+             'app/licencias/fichas/[dni]/page.tsx': route('fichas/[dni]'),
+             'app/licencias/fichas/[dni]/agregar/page.tsx': route('fichas/[dni]/agregar'),
              'app/licencias/ultimas/[id]/borrar/page.tsx': route('ultimas/[id]/borrar')}
     with preview_server('licencias-administracion', listing, 3112, extra_files=extra,
                         aliases={'@/lib/licencias/server': ['./fixtures/server.ts']}) as (origin, artifacts):
@@ -67,6 +83,56 @@ def main():
                     page.set_viewport_size({'width': width, 'height': 1000})
                     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'), f'Desborde a {width}'
                 page.screenshot(path=str(artifacts / 'ultimas-cargas.png'), full_page=True)
+                initial_documents = len(documents)
+                page.goto(origin + '/licencias/fichas/12345678?anio=2026')
+                history = page.get_by_role('region', name='Historial de licencias', exact=True)
+                expect(history.get_by_role('link', name='Editar', exact=True)).to_have_attribute('href', '/licencias/ultimas/101/editar?ficha=2026')
+                expect(history.get_by_role('link', name='Borrar', exact=True)).to_have_attribute('href', '/licencias/ultimas/101/borrar?ficha=2026')
+                history.get_by_role('link', name='Editar', exact=True).click()
+                expect(page.get_by_role('heading', name='Editar licencia #101', exact=True)).to_be_visible()
+                expect(page.get_by_role('link', name='Cancelar', exact=True)).to_have_attribute('href', '/licencias/fichas/12345678?anio=2026')
+                page.get_by_role('link', name='Cancelar', exact=True).click()
+                expect(history).to_be_visible()
+                history.get_by_role('link', name='Borrar', exact=True).click()
+                expect(page.get_by_role('link', name='Cancelar', exact=True)).to_have_attribute('href', '/licencias/fichas/12345678?anio=2026')
+                page.get_by_role('link', name='Cancelar', exact=True).click()
+                page.get_by_role('link', name='Formato ficha', exact=True).click()
+                paper = page.get_by_role('region', name='Ficha en formato papel', exact=True)
+                toolbar = page.get_by_role('toolbar', name='Editar filas de la planilla', exact=True)
+                paper.locator('tr[data-registro-id="101"]').first.click()
+                expect(toolbar.get_by_role('link', name='Editar fila', exact=True)).to_have_attribute('href', '/licencias/ultimas/101/editar?ficha=2026&vista=ficha')
+                toolbar.get_by_role('link', name='Añadir fila arriba', exact=True).click()
+                expect(page.get_by_role('heading', name='Añadir fila arriba', exact=True)).to_be_visible()
+                page.get_by_label('Tipo de licencia', exact=True).select_option('101')
+                page.get_by_label('Observación (opcional)', exact=True).fill('Fila insertada arriba')
+                page.get_by_role('button', name='Guardar licencia', exact=True).click()
+                expect(page.get_by_text('La licencia se guardó correctamente.', exact=True)).to_be_visible()
+                page.get_by_role('link', name='Volver a la ficha', exact=True).click()
+                expect(paper.locator('tr[data-registro-id]').first).to_have_attribute('data-registro-id', '103')
+                paper.locator('tr[data-registro-id="101"]').first.click()
+                toolbar.get_by_role('link', name='Añadir fila abajo', exact=True).click()
+                page.get_by_label('Tipo de licencia', exact=True).select_option('101')
+                page.get_by_label('Observación (opcional)', exact=True).fill('Fila insertada abajo')
+                page.get_by_role('button', name='Guardar licencia', exact=True).click()
+                expect(page.get_by_text('La licencia se guardó correctamente.', exact=True)).to_be_visible()
+                page.get_by_role('link', name='Volver a la ficha', exact=True).click()
+                expect(paper.locator('tr[data-registro-id]').first).to_have_attribute('data-registro-id', '103')
+                ids = paper.locator('tr[data-registro-id]:not([data-continuacion])').evaluate_all('(rows)=>rows.map(row=>row.dataset.registroId)')
+                assert ids == ['103', '101', '104'], ids
+                page.reload(wait_until='networkidle')
+                ids = paper.locator('tr[data-registro-id]:not([data-continuacion])').evaluate_all('(rows)=>rows.map(row=>row.dataset.registroId)')
+                assert ids == ['103', '101', '104'], ids
+                paper.locator('tr[data-registro-id="101"]').first.click()
+                page.emulate_media(media='print')
+                expect(toolbar).to_be_hidden()
+                page.pdf(path=str(artifacts / 'planilla-editable.pdf'), prefer_css_page_size=True)
+                page.emulate_media(media='screen')
+                expect(toolbar).to_be_visible()
+                page.screenshot(path=str(artifacts / 'planilla-editable.png'), full_page=True)
+                toolbar.get_by_role('link', name='Editar fila', exact=True).click()
+                expect(page.get_by_role('link', name='Cancelar', exact=True)).to_have_attribute('href', '/licencias/fichas/12345678?anio=2026&vista=ficha')
+                page.get_by_role('link', name='Cancelar', exact=True).click()
+                page.goto(origin + '/licencias/ultimas')
                 initial_documents = len(documents)
                 first.get_by_role('link', name='Editar', exact=True).click()
                 expect(page.get_by_role('heading', name='Editar licencia #101', exact=True)).to_be_visible()
@@ -117,6 +183,10 @@ def main():
                 page.goto(origin + '/licencias/ultimas/102/editar')
                 expect(page.get_by_text('No se pudo autorizar la edición.', exact=False)).to_be_visible()
                 expect(page.get_by_role('button', name='Guardar cambios', exact=True)).to_have_count(0)
+                page.goto(origin + '/licencias/fichas/12345678?anio=2026')
+                expect(page.get_by_role('region', name='Historial de licencias', exact=True)).to_be_visible()
+                expect(page.get_by_role('link', name='Editar', exact=True)).to_have_count(0)
+                expect(page.get_by_role('link', name='Borrar', exact=True)).to_have_count(0)
                 assert not errors, errors
                 print('Licencias UI: autores y hora argentina, edición, cancelación, confirmación de borrado, filtros, permisos, navegación interna y móvil: OK')
             finally:

@@ -39,6 +39,7 @@ export type LicenciaRegistro = {
   dni_familiar: number | null
   numero_orden: number | null
   imprevisto_id: number | null
+  orden_ficha_por_anio?: Record<string, number>
 }
 
 export type LicenciaFormState = { status: 'idle' | 'error' | 'success'; message?: string }

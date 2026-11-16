@@ -1,6 +1,7 @@
 import { diasEnAnio, fechaVisible, type LicenciaPersona, type LicenciaRegistro } from '@/lib/licencias/domain'
+import Link from 'next/link'
 
-export function FichaDetalle({ persona, registros, anio }: { persona: LicenciaPersona; registros: LicenciaRegistro[]; anio: number }) {
+export function FichaDetalle({ persona, registros, anio, puedeAdministrar = false }: { persona: LicenciaPersona; registros: LicenciaRegistro[]; anio: number; puedeAdministrar?: boolean }) {
   const resumen = new Map<string, { registros: number; dias: number }>()
   for (const registro of registros) {
     if (registro.anulado_at) continue
@@ -24,7 +25,7 @@ export function FichaDetalle({ persona, registros, anio }: { persona: LicenciaPe
       <h2 className="text-lg font-semibold">Historial de licencias</h2>
       <div role="region" aria-label="Historial de licencias" tabIndex={0} className="overflow-x-auto rounded-xl border border-zinc-800 focus-visible:outline-2 focus-visible:outline-sky-400">
         <table className="w-full min-w-[900px] text-left text-sm">
-          <thead className="bg-zinc-900 text-zinc-400"><tr>{['Tipo', 'Desde', 'Hasta', 'Días', 'Cantidad en ficha', 'Observación', 'Estado'].map((label) => <th key={label} scope="col" className="px-4 py-3 font-medium">{label}</th>)}</tr></thead>
+          <thead className="bg-zinc-900 text-zinc-400"><tr>{['Tipo', 'Desde', 'Hasta', 'Días', 'Cantidad en ficha', 'Observación', 'Estado', ...(puedeAdministrar ? ['Acciones'] : [])].map((label) => <th key={label} scope="col" className="px-4 py-3 font-medium">{label}</th>)}</tr></thead>
           <tbody className="divide-y divide-zinc-800">{registros.map((registro) => <tr key={registro.id} className={registro.anulado_at ? 'text-zinc-500' : ''}>
             <td className="px-4 py-3"><p>{registro.tipo.codigo ? `${registro.tipo.codigo} · ` : ''}{registro.tipo.nombre}</p>{registro.imprevisto_id ? <p className="mt-1 text-xs text-zinc-400">Desde Imprevistos</p> : null}</td>
             <td className="whitespace-nowrap px-4 py-3">{fechaVisible(registro.desde)}</td><td className="whitespace-nowrap px-4 py-3">{fechaVisible(registro.hasta)}</td>
@@ -32,7 +33,8 @@ export function FichaDetalle({ persona, registros, anio }: { persona: LicenciaPe
             <td className="px-4 py-3">{registro.cantidad_ficha || '—'}</td>
             <td className="max-w-xs whitespace-pre-wrap break-words px-4 py-3">{registro.observacion || '—'}{registro.numero_orden ? <p className="mt-1 text-xs text-zinc-400">Orden: {registro.numero_orden}</p> : null}{registro.dni_familiar ? <p className="mt-1 text-xs text-zinc-400">DNI familiar: {registro.dni_familiar}</p> : null}</td>
             <td className="px-4 py-3">{registro.anulado_at ? 'Anulada' : 'Vigente'}</td>
-          </tr>)}{!registros.length ? <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-400">Sin registros para el año seleccionado.</td></tr> : null}</tbody>
+            {puedeAdministrar ? <td className="px-4 py-3">{registro.imprevisto_id ? <span className="text-xs text-zinc-400">Gestionar en Imprevistos</span> : !registro.anulado_at ? <div className="flex gap-4"><Link href={`/licencias/ultimas/${registro.id}/editar?ficha=${anio}`} className="inline-flex min-h-11 items-center text-sky-300 underline underline-offset-4">Editar</Link><Link href={`/licencias/ultimas/${registro.id}/borrar?ficha=${anio}`} className="inline-flex min-h-11 items-center text-red-300 underline underline-offset-4">Borrar</Link></div> : null}</td> : null}
+          </tr>)}{!registros.length ? <tr><td colSpan={puedeAdministrar ? 8 : 7} className="px-4 py-8 text-center text-zinc-400">Sin registros para el año seleccionado.</td></tr> : null}</tbody>
         </table>
       </div>
     </div>

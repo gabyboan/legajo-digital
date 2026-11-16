@@ -35,8 +35,16 @@ export async function guardarLicencia(_previous: LicenciaFormState, formData: Fo
   if (permisos.error || !permisos.leer || !permisos.cargar) return { status: 'error', message: 'No se pudo autorizar la carga. Revisá tu sesión y tus permisos.' }
   const prepared = await prepararLicencia(supabase, formData)
   if (prepared.error || !prepared.args) return { status: 'error', message: prepared.error }
-  const { error } = await supabase.rpc('rpc_licencias_guardar_con_datos', { p_id: null, ...prepared.args })
+  const anio = formData.get('ficha_anio')
+  const referencia = formData.get('ficha_referencia')
+  const lado = formData.get('ficha_lado')
+  const insertar = anio !== null || referencia !== null || lado !== null
+  if (insertar && (!permisos.ficha || formData.getAll('ficha_anio').length !== 1 || formData.getAll('ficha_referencia').length !== 1 || formData.getAll('ficha_lado').length !== 1 || typeof anio !== 'string' || !/^\d{4}$/.test(anio) || Number(anio) < 2026 || Number(anio) > 9998 || typeof referencia !== 'string' || (referencia !== '' && (!/^-?\d+$/.test(referencia) || !Number.isSafeInteger(Number(referencia)) || Number(referencia) === 0)) || (lado !== 'arriba' && lado !== 'abajo'))) return { status: 'error', message: 'La ficha o la fila de referencia son inválidas.' }
+  const { data, error } = insertar
+    ? await supabase.rpc('rpc_licencias_insertar_en_ficha', { p_datos: prepared.args, p_anio: Number(anio), p_referencia_id: referencia ? Number(referencia) : null, p_lado: lado })
+    : await supabase.rpc('rpc_licencias_guardar_con_datos', { p_id: null, ...prepared.args })
   if (error) return { status: 'error', message: mensajeLicencia(error) }
+  if (insertar && (!Number.isSafeInteger(data) || Number(data) < 1)) return { status: 'error', message: 'No se pudo confirmar la nueva fila. Actualizá la planilla antes de reintentar.' }
   revalidatePath('/licencias', 'layout')
   return { status: 'success', message: 'La licencia se guardó correctamente.' }
 }

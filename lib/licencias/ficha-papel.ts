@@ -31,7 +31,7 @@ export function paginarFicha(registros: LicenciaRegistro[], dni: number, anio: n
   if (!Number.isInteger(anio) || anio < 2026 || anio > 9998) throw new Error('Año de ficha inválido.')
   if (registros.some((registro) => registro.dni !== dni)) throw new Error('Las licencias deben corresponder al agente de la ficha.')
   const ordenados = registros.filter((registro) => !registro.anulado_at && registro.hasta >= `${anio}-01-01` && registro.desde <= `${anio}-12-31`)
-    .sort((a, b) => a.desde.localeCompare(b.desde) || a.id - b.id)
+    .sort((a, b) => (a.orden_ficha_por_anio?.[String(anio)] ?? Number.MAX_SAFE_INTEGER) - (b.orden_ficha_por_anio?.[String(anio)] ?? Number.MAX_SAFE_INTEGER) || a.desde.localeCompare(b.desde) || a.id - b.id)
   const renglones: FichaRenglon[] = []
   for (const registro of ordenados) {
     const columna = columnas[registro.tipo.columna_ficha ?? '']

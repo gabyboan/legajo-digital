@@ -28,6 +28,16 @@
 
 .paper:last-child { margin-bottom: 0; }
 
+.tools { position: sticky; left: 0; max-width: calc(100vw - 5rem); margin-bottom: 16px; padding: 12px; border: 1px solid #52525b; border-radius: 8px; color: #e4e4e7; background: #18181b; font: 14px Arial, sans-serif; }
+.tools p { margin-bottom: 8px; }
+.tools div { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.tools a { display: inline-flex; align-items: center; min-height: 44px; padding: 4px 12px; border: 1px solid #71717a; border-radius: 6px; color: #bae6fd; }
+.tools a:hover, .tools a:focus-visible { background: #164e63; outline: 2px solid #38bdf8; }
+.tools span { font-size: 12px; }
+.editable { cursor: pointer; }
+.editable:hover, .editable:focus-visible { background: #e0f2fe; outline: 2px solid #0284c7; outline-offset: -2px; }
+.selected { cursor: pointer; background: #bae6fd; outline: 2px solid #0284c7; outline-offset: -2px; }
+
 .heading {
   display: flex;
   align-items: center;
@@ -97,6 +107,8 @@
 }
 
 @media print {
+  .tools { display: none !important; }
+  .selected, .editable:hover, .editable:focus-visible { background: transparent; outline: none; }
   :global(html):has(.root), :global(body):has(.root) {
     width: 297mm;
     height: auto;

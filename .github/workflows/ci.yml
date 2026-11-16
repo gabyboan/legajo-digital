@@ -38,6 +38,8 @@ jobs:
         run: python -B scripts/test-domicilio-rpc.py --pg-bin "$(pg_config --bindir)"
       - name: Probar permisos y correcciones de licencias en PostgreSQL temporal
         run: python -B scripts/test-licencias-db.py --pg-bin "$(pg_config --bindir)"
+      - name: Probar inserción y concurrencia de filas de la planilla
+        run: python -B scripts/test-ficha-filas-db.py --pg-bin "$(pg_config --bindir)"
       - name: Compilar
         run: pnpm run build
       - name: Probar control de novedades en PostgreSQL temporal

@@ -43,7 +43,7 @@ export default async function FichaLicenciasPage({ params, searchParams }: { par
         </div>
         {vista === 'ficha' ? <p className="text-sm text-zinc-400">Formato de la ficha de papel, en hojas A4 horizontales. Deslizá para ver todas las columnas.</p> : null}
       </div>
-      {vista === 'ficha' ? <FichaPapel persona={persona} registros={historial.registros} anio={anio} /> : <FichaDetalle persona={persona} registros={historial.registros} anio={anio} />}
+      {vista === 'ficha' ? <FichaPapel persona={persona} registros={historial.registros} anio={anio} puedeCargar={permisos.leer && permisos.cargar} puedeAdministrar={permisos.leer && permisos.administrar} /> : <FichaDetalle persona={persona} registros={historial.registros} anio={anio} puedeAdministrar={permisos.leer && permisos.administrar} />}
     </section>
   )
 }

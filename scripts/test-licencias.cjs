@@ -32,6 +32,7 @@ function setup(options = {}) {
       if (name.startsWith('can_')) return { data: options.denied !== name, error: options.permissionError ? { code: 'NETWORK' } : null }
       if (name === 'rpc_licencias_estudio_hasta') return { data: options.invalidDate ? null : '2026-11-17', error: null }
       if (name === 'rpc_licencias_guardar_con_datos') return { data: 101, error: options.saveError ?? null }
+      if (name === 'rpc_licencias_insertar_en_ficha') return { data: options.unconfirmed ? null : 101, error: options.saveError ?? null }
       if (name === 'rpc_licencias_ultimas') return { data: options.recordMissing ? [] : [{ id: 101, dni: 12345678, tipo_id: 129, version: 'a'.repeat(32), anulado_at: options.deleted ? '2026-11-11T12:00:00Z' : null }], error: options.recentError ?? null }
       if (name === 'rpc_licencias_editar_versionada' || name === 'rpc_licencias_borrar_versionada') return { data: options.unconfirmed ? null : 101, error: options.correctError ?? null }
       if (name === 'rpc_licencias_historial') return options.historyError && args.p_offset ? { error: { code: 'NETWORK' } } : { data: args.p_offset ? [{ id: 501 }] : Array.from({ length: 500 }, (_, id) => ({ id: id + 1 })), error: null }
@@ -115,6 +116,22 @@ async function main() {
     p_id: null, p_dni: 12345678, p_tipo_id: 129, p_desde: '2026-11-10', p_hasta: '2026-11-12', p_observacion: 'Prueba ficticia', p_dni_familiar: 87654321, p_numero_orden: 12, p_cantidad_ficha: '20/23',
   })
   const study = setup({ codigo: '29' })
+  const insertion = { ficha_anio: '2026', ficha_referencia: '-10', ficha_lado: 'arriba' }
+  const inserted = setup()
+  assert.equal((await inserted.actions.guardarLicencia(idle, form(insertion))).status, 'success')
+  assert.deepEqual(inserted.calls.find((call) => call.name === 'rpc_licencias_insertar_en_ficha').args, {
+    p_datos: { p_dni: 12345678, p_tipo_id: 129, p_desde: '2026-11-10', p_hasta: '2026-11-12', p_observacion: null, p_dni_familiar: null, p_numero_orden: null, p_cantidad_ficha: null },
+    p_anio: 2026, p_referencia_id: -10, p_lado: 'arriba',
+  })
+  for (const options of [{ denied: 'can_ficha_read' }, { denied: 'can_licencias_create' }, { unconfirmed: true }]) {
+    const attempt = setup(options)
+    assert.equal((await attempt.actions.guardarLicencia(idle, form(insertion))).status, 'error')
+  }
+  for (const change of [{ ficha_lado: 'otra' }, { ficha_anio: '2025' }, { ficha_referencia: '0' }, { ficha_referencia: '1e3' }]) {
+    const attempt = setup()
+    assert.equal((await attempt.actions.guardarLicencia(idle, form({ ...insertion, ...change }))).status, 'error')
+    assert.equal(attempt.calls.some((call) => call.name === 'rpc_licencias_insertar_en_ficha'), false)
+  }
   assert.equal((await study.actions.guardarLicencia(idle, form({ dias: '5' }))).status, 'success')
   assert.equal(study.calls.find((call) => call.name === 'rpc_licencias_guardar_con_datos').args.p_hasta, '2026-11-17')
   const overLimit = setup({ codigo: '29' })
