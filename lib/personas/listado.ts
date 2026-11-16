@@ -9,15 +9,28 @@ export type PersonaListado = {
   carreras: { id: number; nombre: string }[]
 }
 
-export function filtrarPersonas(personas: PersonaListado[], q: string, carrera = '', estado = 'todos') {
+export function indexarPersonas(personas: readonly PersonaListado[]) {
+  return personas.map((persona) => ({
+    persona,
+    texto: limpiarBusqueda(`${persona.apellido} ${persona.nombre}`).join(' ') + ` ${persona.dni} ${persona.legajo ?? ''}`,
+    dni: String(persona.dni), legajo: String(persona.legajo ?? ''),
+    carreras: persona.carreras.map((item) => String(item.id)),
+  }))
+}
+
+export function filtrarIndicePersonas(indice: ReturnType<typeof indexarPersonas>, q: string, carrera = '', estado = 'todos') {
   const terms = limpiarBusqueda(q)
   // Un DNI escrito con separadores debe coincidir igual que su versión numérica.
   const numeric = q.trim().replace(/[.\s-]/g, '')
-  return personas.filter((persona) => {
-    if (carrera && !persona.carreras.some((item) => String(item.id) === carrera)) return false
+  const esNumerico = /^\d+$/.test(numeric)
+  return indice.filter(({ persona, texto, dni, legajo, carreras }) => {
+    if (carrera && !carreras.includes(carrera)) return false
     if (estado === 'activos' && !persona.activo || estado === 'inactivos' && persona.activo) return false
-    if (/^\d+$/.test(numeric)) return String(persona.dni).includes(numeric) || String(persona.legajo ?? '').includes(numeric)
-    const fields = limpiarBusqueda(`${persona.apellido} ${persona.nombre}`).join(' ') + ` ${persona.dni} ${persona.legajo ?? ''}`
-    return terms.every((term) => fields.includes(term))
-  })
+    if (esNumerico) return dni.includes(numeric) || legajo.includes(numeric)
+    return terms.every((term) => texto.includes(term))
+  }).map(({ persona }) => persona)
+}
+
+export function filtrarPersonas(personas: PersonaListado[], q: string, carrera = '', estado = 'todos') {
+  return filtrarIndicePersonas(indexarPersonas(personas), q, carrera, estado)
 }

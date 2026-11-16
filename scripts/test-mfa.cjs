@@ -173,7 +173,7 @@ async function testProxy() {
     const result = await middleware.updateSession(new NextRequest('https://legajo.invalid' + url, { method }))
     assert.equal(result.headers.get('location'), expected ? 'https://legajo.invalid' + expected : null)
     assert.equal(result.cookies.get('synthetic-refresh')?.value, 'rotated', 'Redirects must keep refreshed session cookies')
-    if (expected) assert.equal(result.headers.get('cache-control'), 'private, no-store')
+    assert.equal(result.headers.get('cache-control'), 'private, no-store', 'Successful responses and refreshed cookies must also stay out of shared caches')
   }
 }
 

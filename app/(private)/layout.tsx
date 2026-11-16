@@ -4,6 +4,7 @@ import { logout } from '@/app/login/actions'
 import { PrivateShell } from './components/private-shell'
 import { enlaceMfa } from '@/lib/auth/mfa'
 import { estadoMfa } from '@/lib/auth/mfa-server'
+import { usuarioSesion } from '@/lib/auth/session-server'
 
 export default async function PrivateLayout({
   children,
@@ -12,9 +13,7 @@ export default async function PrivateLayout({
 }) {
   const supabase = await createClient()
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await usuarioSesion(supabase)
 
   if (!user) {
     redirect('/login')

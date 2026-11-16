@@ -2,6 +2,7 @@
 
 import { capitalizarNombre } from '@/lib/nombres'
 import { revalidatePath } from 'next/cache'
+import { revalidarPersona } from '@/lib/personas/cache-server'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import {
@@ -184,8 +185,7 @@ export async function guardarIdentidadPersona(formData: FormData) {
   }
 
   consumirComprobacionPersona(user.id, dniRaw)
-  revalidatePath('/personas')
-  revalidatePath(`/personas/${Number(dniRaw)}`)
+  revalidarPersona(Number(dniRaw))
   redirect(`/personas/${Number(dniRaw)}/editar`)
 }
 
@@ -220,8 +220,7 @@ export async function createPersona(formData: FormData) {
     )
 
     if (asistenciaError) {
-      revalidatePath('/personas')
-      revalidatePath(`/personas/${dni}`)
+      revalidarPersona(dni)
       redirect(
         `/personas/${dni}/editar?error=${encodeURIComponent(
           `La persona fue creada, pero no se pudo guardar la asistencia: ${asistenciaError.message}`
@@ -230,8 +229,7 @@ export async function createPersona(formData: FormData) {
     }
   }
 
-  revalidatePath('/personas')
-  revalidatePath(`/personas/${dni}`)
+  revalidarPersona(dni)
   redirect(`/personas/${dni}`)
 }
 
@@ -262,9 +260,7 @@ async function guardarFormularioPersona(formData: FormData): Promise<PersonaForm
     return { status: 'error', message: saved.message, errors: saved.errors, values: parsed.values }
   }
   const dni = parsed.datos.identificacion.dni
-  revalidatePath('/personas')
-  revalidatePath(`/personas/${dni}`)
-  revalidatePath(`/personas/${dni}/editar`)
+  revalidarPersona(dni)
   redirect(`/personas/${dni}`)
 }
 
@@ -789,8 +785,7 @@ export async function inactivarPersona(formData: FormData) {
     redirect(`/personas/${dni}?error=${encodeURIComponent(error.message)}`)
   }
 
-  revalidatePath('/personas')
-  revalidatePath(`/personas/${dni}`)
+  revalidarPersona(dni)
   redirect(`/personas/${dni}`)
 }
 
@@ -820,7 +815,6 @@ export async function reactivarPersona(formData: FormData) {
     redirect(`/personas/${dni}?error=${encodeURIComponent(error.message)}`)
   }
 
-  revalidatePath('/personas')
-  revalidatePath(`/personas/${dni}`)
+  revalidarPersona(dni)
   redirect(`/personas/${dni}`)
 }

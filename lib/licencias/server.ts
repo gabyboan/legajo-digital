@@ -1,16 +1,17 @@
 import 'server-only'
+import { cache } from 'react'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { enlaceMfa } from '@/lib/auth/mfa'
 import { estadoMfa } from '@/lib/auth/mfa-server'
 import type { LicenciaCarga, LicenciaPersona, LicenciaRegistro } from './domain'
-import { exigirSesionDatos, redirigirSiSesionVencida } from '@/lib/auth/session-server'
+import { exigirSesionDatos, redirigirSiSesionVencida, usuarioSesion } from '@/lib/auth/session-server'
 
 type Client = Awaited<ReturnType<typeof createClient>>
 
 export async function sesionLicencias(destination: string) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await usuarioSesion(supabase)
   if (!user) redirect(`/login?next=${encodeURIComponent(destination)}`)
   const status = await estadoMfa(supabase, user)
   if (status === 'required' || status === 'error') redirect(enlaceMfa(destination))
@@ -18,7 +19,7 @@ export async function sesionLicencias(destination: string) {
   return supabase
 }
 
-export async function permisosLicencias(supabase: Client) {
+export const permisosLicencias = cache(async (supabase: Client) => {
   const [read, create, ficha, admin] = await Promise.all([
     supabase.rpc('can_licencias_read'),
     supabase.rpc('can_licencias_create'),
@@ -33,7 +34,7 @@ export async function permisosLicencias(supabase: Client) {
     administrar: !admin.error && admin.data === true,
     error: Boolean(read.error || create.error || ficha.error || admin.error),
   }
-}
+})
 
 export async function personasLicencias(supabase: Client, buscar: string, ficha = false) {
   const { data, error } = await supabase.rpc(ficha ? 'rpc_ficha_personas' : 'rpc_licencias_personas', { p_buscar: buscar.trim().slice(0, 150) })

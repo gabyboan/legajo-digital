@@ -52,7 +52,7 @@ def main():
             try:
                 page = browser.new_page(viewport={'width': 1440, 'height': 1000})
                 errors, documents, calls = [], [], []
-                state = {'held': None, 'fail': True}
+                state = {'held': None, 'held_timeout': None, 'fail': True, 'timeout': True}
                 page.on('pageerror', lambda error: errors.append(str(error)))
                 page.on('request', lambda request: documents.append(request.url) if request.resource_type == 'document' else None)
 
@@ -63,12 +63,18 @@ def main():
                     if q == 'vieja':
                         state['held'] = route
                         return
+                    if q == 'timeout' and state['timeout']:
+                        state['held_timeout'] = route
+                        return  # The browser deadline must settle this request.
+                    if q == 'invalida':
+                        route.fulfill(json={'personas': [{'dni': 12345678, 'apellido_nombre': {'invalid': True}}]})
+                        return
                     if q == 'error' and state['fail']:
                         route.fulfill(status=503, json={'error': 'Búsqueda temporalmente no disponible.'})
                         return
                     terms = normalized(q).split()
                     rows = [persona for persona in AGENTES if all(term in normalized(f"{persona['apellido_nombre']} {persona['dni']} {persona['legajo']}") for term in terms)]
-                    route.fulfill(json={'personas': AGENTES if q == 'error' else rows})
+                    route.fulfill(json={'personas': AGENTES if q in ['error', 'timeout'] else rows})
 
                 page.route('**/api/licencias/personas?*', search)
                 page.goto(origin + '/licencias/cargar', wait_until='networkidle')
@@ -123,8 +129,28 @@ def main():
                         pass  # The browser already canceled the superseded request.
                 expect(page.get_by_role('button', name='Seleccionar a ÁLVAREZ ANA', exact=True)).to_have_count(0)
                 field.fill('error')
-                expect(page.get_by_text('Búsqueda temporalmente no disponible.', exact=True)).to_be_visible()
+                expect(page.get_by_text('No se pudieron buscar los agentes. Volvé a intentarlo.', exact=True)).to_be_visible()
                 state['fail'] = False
+                page.get_by_role('button', name='Reintentar búsqueda', exact=True).click()
+                expect(page.get_by_role('button', name='Seleccionar a ÁLVAREZ ANA', exact=True)).to_be_visible()
+                field.fill('invalida')
+                expect(page.get_by_text('No se pudieron buscar los agentes. Volvé a intentarlo.', exact=True)).to_be_visible()
+                expect(page.get_by_role('button', name='Seleccionar a ÁLVAREZ ANA', exact=True)).to_have_count(0)
+                page.evaluate('''() => {
+                    const original = AbortSignal.timeout.bind(AbortSignal);
+                    window.demoShortDeadline = true;
+                    AbortSignal.timeout = duration => original(window.demoShortDeadline && duration === 15000 ? 40 : duration);
+                }''')
+                field.fill('timeout')
+                expect(page.get_by_text('No se pudo conectar con la búsqueda. Volvé a intentarlo.', exact=True)).to_be_visible()
+                expect(page.get_by_role('region', name='Agentes para licencias')).to_have_attribute('aria-busy', 'false')
+                if state['held_timeout']:
+                    try:
+                        state['held_timeout'].abort()
+                    except PlaywrightError:
+                        pass
+                state['timeout'] = False
+                page.evaluate('window.demoShortDeadline = false')
                 page.get_by_role('button', name='Reintentar búsqueda', exact=True).click()
                 expect(page.get_by_role('button', name='Seleccionar a ÁLVAREZ ANA', exact=True)).to_be_visible()
                 field.fill('no existe')

@@ -2,9 +2,10 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useRef, useState, type RefObject } from 'react'
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import type { LicenciaPersona } from '@/lib/licencias/domain'
 import { BusquedaAgentes } from '../../components/busqueda-agentes'
+import { BUSQUEDA_TIMEOUT_MS, enlaceSesionBusqueda, personasDeRespuesta } from '@/lib/licencias/busqueda'
 
 type SearchResult = { key: string; personas: LicenciaPersona[]; error?: string; href?: string }
 
@@ -28,7 +29,7 @@ export function PersonasSelector({ personas, q, ficha = false, puedeVerFicha = f
   const [response, setResponse] = useState<SearchResult | null>(null)
   const normalized = query.trim()
   const key = `${ficha ? 'fichas' : 'cargar'}:${attempt}:${normalized}`
-  const [initial] = useState<SearchResult>(() => ({ key, personas }))
+  const initial = useMemo<SearchResult>(() => ({ key: `${ficha ? 'fichas' : 'cargar'}:0:${q.trim()}`, personas }), [ficha, q, personas])
   const result = key === initial.key ? initial : response?.key === key ? response : null
   const busy = !result
 
@@ -38,7 +39,9 @@ export function PersonasSelector({ personas, q, ficha = false, puedeVerFicha = f
     const timer = setTimeout(async () => {
       try {
         const params = new URLSearchParams({ q: normalized, contexto: ficha ? 'fichas' : 'cargar' })
-        const request = await fetch(`/api/licencias/personas?${params}`, { signal: controller.signal, cache: 'no-store' })
+        const request = await fetch(`/api/licencias/personas?${params}`, {
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(BUSQUEDA_TIMEOUT_MS)]), cache: 'no-store',
+        })
         if (request.redirected) {
           const target = new URL(request.url)
           if (target.origin === window.location.origin && ['/login', '/auth/mfa'].includes(target.pathname)) {
@@ -46,17 +49,19 @@ export function PersonasSelector({ personas, q, ficha = false, puedeVerFicha = f
             return
           }
         }
-        const data = await request.json()
+        const payload: unknown = await request.json()
         if (controller.signal.aborted) return
-        if ((request.status === 401 || request.status === 403) && typeof data.href === 'string'
-          && (data.href.startsWith('/auth/expired?') || data.href.startsWith('/auth/mfa?') || data.href.startsWith('/login?'))) {
-          window.location.replace(data.href)
+        const data = payload && typeof payload === 'object' ? payload as Record<string, unknown> : {}
+        const href = enlaceSesionBusqueda(data.href)
+        if ((request.status === 401 || request.status === 403) && href) {
+          window.location.replace(href)
           return
         }
-        if (!request.ok || !Array.isArray(data.personas)) {
-          setResponse({ key, personas: [], error: typeof data.error === 'string' ? data.error : 'No se pudieron buscar los agentes.', href: data.href })
+        const results = personasDeRespuesta(payload)
+        if (!request.ok || !results) {
+          setResponse({ key, personas: [], error: 'No se pudieron buscar los agentes. Volvé a intentarlo.', href })
         } else {
-          setResponse({ key, personas: data.personas })
+          setResponse({ key, personas: results })
         }
       } catch {
         if (!controller.signal.aborted) setResponse({ key, personas: [], error: 'No se pudo conectar con la búsqueda. Volvé a intentarlo.' })
