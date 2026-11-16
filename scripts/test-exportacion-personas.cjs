@@ -35,13 +35,15 @@ function setup({ authenticated = true, failed = false, rows = personas } = {}) {
     from(table) {
       calls.push(table)
       let dni
+      let start = 0, end = 499
       const query = {
         select() { return query }, order() { return query }, limit() { return query },
+        range(first, last) { start = first; end = last; assert.equal(last - first, 499); return query },
         eq(column, value) { assert.equal(column, 'dni'); dni = value; return query },
         then(resolve, reject) {
           const result = table === 'personas'
-            ? { data: failed ? null : rows.filter((row) => dni === undefined || row.dni === dni), error: failed ? { message: 'INTERNAL_DETAIL' } : null }
-            : { data: [{ dni: 23456789 }], error: null }
+            ? { data: failed ? null : rows.filter((row) => dni === undefined || row.dni === dni).slice(start, end + 1), error: failed ? { message: 'INTERNAL_DETAIL' } : null }
+            : { data: [{ dni: 23456789 }].slice(start, end + 1), error: null }
           return Promise.resolve(result).then(resolve, reject)
         },
       }
@@ -50,7 +52,8 @@ function setup({ authenticated = true, failed = false, rows = personas } = {}) {
   }
   const route = load('app/api/personas/exportar/route.ts', {
     '@/utils/supabase/server': { createClient: async () => client },
-    '@/lib/buscar-personas': load('lib/buscar-personas.ts'),
+    '@/lib/personas/listado': load('lib/personas/listado.ts', { '@/lib/buscar-personas': load('lib/buscar-personas.ts') }),
+    '@/lib/personas/listado-server': load('lib/personas/listado-server.ts', { 'server-only': {} }),
   })
   return { calls, get: (query = '') => route.GET(new Request(`http://localhost/api/personas/exportar${query}`)) }
 }
@@ -91,6 +94,16 @@ async function main() {
   assert.deepEqual(inactive.map((row) => row.DNI), [23456789])
   const empty = await read(await setup({ rows: [] }).get())
   assert.deepEqual(XLSX.utils.sheet_to_json(empty), [])
+  const extra = { dni: 45678901, apellido: 'Última', nombre: 'Persona', legajo: 42,
+    persona_carreras: [{ carrera_id: 1, carreras: { nombre: 'Enfermería' } }, { carrera_id: 2, carreras: { nombre: 'Administración' } }] }
+  const many = [...Array.from({length: 1200}, (_, index) => ({ ...personas[0], dni: 10000000 + index })), extra]
+  for (const query of ['?q=ultima+persona+42', '?q=45.678.901', '?q=42&carrera=2']) {
+    const exported = XLSX.utils.sheet_to_json(await read(await setup({ rows: many }).get(query)))
+    assert.deepEqual(exported.map((row) => row.DNI), [45678901])
+    assert.equal(exported[0].Legajo, 42)
+    assert.equal(exported[0].Carrera, 'Enfermería, Administración')
+  }
+  assert.equal(XLSX.utils.sheet_to_json(await read(await setup({ rows: many }).get())).length, 1201)
   console.log('Exportación XLSX: autenticación, columnas, acentos, filtros, texto sin fórmulas y listado vacío: OK')
 }
 

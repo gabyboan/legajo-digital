@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import type { LicenciaPersona } from '@/lib/licencias/domain'
+import { BusquedaAgentes } from '../../components/busqueda-agentes'
 
 type SearchResult = { key: string; personas: LicenciaPersona[]; error?: string; href?: string }
 
@@ -81,22 +82,9 @@ export function PersonasSelector({ personas, q, ficha = false, puedeVerFicha = f
 
   return (
     <div className="space-y-4">
-      <form role="search" action={base} onSubmit={(event) => { event.preventDefault(); setExpanded(true); setAttempt((value) => value + 1) }} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="min-w-0 flex-1">
-          <label htmlFor="buscar-agente" className="mb-2 block text-sm text-zinc-300">Buscar agente</label>
-          <input ref={searchInputRef} id="buscar-agente" name="q" type="search" value={query} onChange={(event) => { setQuery(event.target.value); setExpanded(true) }} onFocus={() => setExpanded(true)} onKeyDown={(event) => {
-            if (event.key === 'ArrowDown' && rows.length && expanded) {
-              event.preventDefault()
-              resultsRef.current?.querySelector<HTMLTableRowElement>('tr')?.focus()
-            }
-          }} maxLength={150} autoComplete="off" placeholder="Apellido, nombre, DNI o legajo" aria-describedby="buscar-agente-ayuda" aria-controls="resultados-agentes" className="min-h-11 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm focus:border-sky-400 focus:outline-none" />
-          </div>
-          <button type="submit" className="min-h-11 rounded-lg border border-zinc-600 px-4 py-2 text-sm hover:bg-zinc-800 focus-visible:outline-2 focus-visible:outline-sky-400">Buscar</button>
-          {query ? <button type="button" onClick={() => { setQuery(''); setExpanded(true); searchInputRef.current?.focus() }} className="min-h-11 px-3 text-sm text-zinc-300 underline underline-offset-4">Limpiar</button> : null}
-        </div>
-        <p id="buscar-agente-ayuda" className="mt-3 text-xs text-zinc-400">Los resultados se actualizan mientras escribís, sin recargar la página. Hacé clic en la fila de un agente o elegilo con ↓ y Enter.</p>
-      </form>
+      <BusquedaAgentes query={query} onChange={(value) => { setQuery(value); setExpanded(true) }} onFocus={() => setExpanded(true)} onSubmit={() => { setExpanded(true); setAttempt((value) => value + 1) }} inputRef={searchInputRef} onArrowDown={() => {
+        if (rows.length && expanded) resultsRef.current?.querySelector<HTMLTableRowElement>('tr')?.focus()
+      }} />
       <div id="resultados-agentes" hidden={!expanded} className="space-y-3">
       {error ? <div role="alert" className="rounded-xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200"><p>{error}</p><div className="mt-2 flex flex-wrap gap-4"><button type="button" onClick={() => setAttempt((value) => value + 1)} className="min-h-11 underline underline-offset-4">Reintentar búsqueda</button>{authHref ? <Link href={authHref} className="inline-flex min-h-11 items-center underline underline-offset-4">Verificar mi sesión</Link> : null}</div></div> : null}
       <p aria-live="polite" className="text-sm text-zinc-400">{busy ? 'Buscando agentes…' : error ? 'Búsqueda no disponible.' : `${rows.length} ${rows.length === 1 ? 'agente encontrado' : 'agentes encontrados'}.${rows.length >= 100 ? ' Se muestran los primeros 100; ajustá la búsqueda.' : ''}`}</p>

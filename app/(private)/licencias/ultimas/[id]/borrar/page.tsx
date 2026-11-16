@@ -1,10 +1,11 @@
 import Link from 'next/link'
+import { anioConsulta, primerParametro } from '@/lib/licencias/domain'
 import { permisosLicencias, sesionLicencias, ultimasLicencias } from '@/lib/licencias/server'
 import { ModuleMessage } from '../../../components/module-message'
 import { DatosCarga } from '../../listado'
 import { BorrarLicenciaForm } from './borrar-form'
 
-export default async function BorrarLicenciaPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function BorrarLicenciaPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const { id } = await params
   const supabase = await sesionLicencias(`/licencias/ultimas/${id}/borrar`)
   const permisos = await permisosLicencias(supabase)
@@ -14,9 +15,12 @@ export default async function BorrarLicenciaPage({ params }: { params: Promise<{
   if (result.error) return <ModuleMessage error>No se pudo consultar la licencia. Volvé a intentarlo.</ModuleMessage>
   const registro = result.registros[0]
   if (!registro) return <ModuleMessage>No se encontró la licencia.</ModuleMessage>
+  const query = await searchParams
+  const desdeFicha = permisos.ficha && primerParametro(query?.ficha)
+  const volverAFicha = desdeFicha ? `/licencias/fichas/${registro.dni}?anio=${anioConsulta(primerParametro(query?.ficha))}${primerParametro(query?.vista) === 'ficha' ? '&vista=ficha' : ''}` : undefined
   return <section className="space-y-6">
-    <div><Link href="/licencias/ultimas" className="text-sm text-zinc-400 underline underline-offset-4">← Últimas cargas</Link><h1 className="mt-4 text-2xl font-bold">Borrar licencia #{registro.id}</h1><p className="mt-2 text-sm text-zinc-400">Revisá el agente y el período antes de confirmar.</p></div>
+    <div><Link href={volverAFicha ?? "/licencias/ultimas"} className="text-sm text-zinc-400 underline underline-offset-4">{volverAFicha ? '← Ficha del agente' : '← Últimas cargas'}</Link><h1 className="mt-4 text-2xl font-bold">Borrar licencia #{registro.id}</h1><p className="mt-2 text-sm text-zinc-400">Revisá el agente y el período antes de confirmar.</p></div>
     <div className="rounded-xl border border-red-400/20 bg-red-400/5 p-5"><DatosCarga registro={registro} /></div>
-    <BorrarLicenciaForm registro={registro} />
+    <BorrarLicenciaForm registro={registro} volverAFicha={volverAFicha} />
   </section>
 }

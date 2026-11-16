@@ -1,11 +1,11 @@
 import Link from 'next/link'
-import { fechaActual, type LicenciaTipo } from '@/lib/licencias/domain'
+import { anioConsulta, primerParametro, fechaActual, type LicenciaTipo } from '@/lib/licencias/domain'
 import { permisosLicencias, sesionLicencias, ultimasLicencias } from '@/lib/licencias/server'
 import { ModuleMessage } from '../../../components/module-message'
 import { LicenciaForm } from '../../../cargar/licencia-form'
 import { DatosCarga } from '../../listado'
 
-export default async function EditarLicenciaPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditarLicenciaPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const { id } = await params
   const supabase = await sesionLicencias(`/licencias/ultimas/${id}/editar`)
   const permisos = await permisosLicencias(supabase)
@@ -19,9 +19,12 @@ export default async function EditarLicenciaPage({ params }: { params: Promise<{
   if (catalogo.error) return <ModuleMessage error>No se pudo consultar el catálogo de licencias.</ModuleMessage>
   const tipos = ((catalogo.data ?? []) as LicenciaTipo[]).filter((tipo) => !['43', '98'].includes(tipo.codigo ?? ''))
   if (!tipos.some((tipo) => tipo.id === registro.tipo_id)) tipos.unshift({ id: registro.tipo_id, nombre: registro.tipo.nombre, codigo: registro.tipo.codigo, columna_ficha: registro.tipo.columna_ficha ?? null, descripcion: 'Tipo histórico de esta licencia. Podés conservarlo o elegir uno habilitado.', habilitado_para_carga: false })
+  const query = await searchParams
+  const desdeFicha = permisos.ficha && primerParametro(query?.ficha)
+  const volverAFicha = desdeFicha ? `/licencias/fichas/${registro.dni}?anio=${anioConsulta(primerParametro(query?.ficha))}${primerParametro(query?.vista) === 'ficha' ? '&vista=ficha' : ''}` : undefined
   return <section className="space-y-6">
-    <div><Link href="/licencias/ultimas" className="text-sm text-zinc-400 underline underline-offset-4">← Últimas cargas</Link><h1 className="mt-4 text-2xl font-bold">Editar licencia #{registro.id}</h1><p className="mt-2 text-sm text-zinc-400">Corregí los datos de esta licencia. La autoría y la fecha de carga original se conservan.</p></div>
+    <div><Link href={volverAFicha ?? "/licencias/ultimas"} className="text-sm text-zinc-400 underline underline-offset-4">{volverAFicha ? '← Ficha del agente' : '← Últimas cargas'}</Link><h1 className="mt-4 text-2xl font-bold">Editar licencia #{registro.id}</h1><p className="mt-2 text-sm text-zinc-400">Corregí los datos de esta licencia. La autoría y la fecha de carga original se conservan.</p></div>
     <div className="rounded-xl border border-sky-400/20 bg-sky-400/5 p-5"><DatosCarga registro={registro} /></div>
-    <LicenciaForm key={registro.id} persona={{ dni: registro.dni, apellido_nombre: registro.apellido_nombre, legajo: null, carrera: '', funcion: '', situacion_revista: '', activo: true }} tipos={tipos} hoy={fechaActual()} puedeVerFicha={permisos.ficha} registro={registro} />
+    <LicenciaForm key={registro.id} persona={{ dni: registro.dni, apellido_nombre: registro.apellido_nombre, legajo: null, carrera: '', funcion: '', situacion_revista: '', activo: true }} tipos={tipos} hoy={fechaActual()} puedeVerFicha={permisos.ficha} registro={registro} volverAFicha={volverAFicha} />
   </section>
 }

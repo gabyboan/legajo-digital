@@ -75,7 +75,7 @@ def preview_server(name, source, port, *, extra_files=None, aliases=None):
                     raise TimeoutError('El preview no inició en 60 segundos.')
                 if 'Ready' in (artifacts/'preview.log').read_text(encoding='utf-8'):
                     try:
-                        with urllib.request.urlopen(origin,timeout=2) as response:
+                        with urllib.request.urlopen(origin,timeout=10) as response:
                             if response.status==200:
                                 break
                     except urllib.error.HTTPError as error:
